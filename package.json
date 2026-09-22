@@ -1,0 +1,20 @@
+{
+  "name": "recall",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A personal memory layer for the web",
+  "workspaces": [
+    "apps/web",
+    "apps/extension-chrome",
+    "packages/shared-types"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:ext": "npm run dev --workspace=apps/extension-chrome",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:ext": "npm run build --workspace=apps/extension-chrome",
+    "build:types": "npm run build --workspace=packages/shared-types",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  }
+}

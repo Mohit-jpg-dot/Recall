@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recall</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app" class="popup">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="logo">
+        <div class="logo-mark">R</div>
+        <span class="logo-text">Recall</span>
+      </div>
+    </header>
+
+    <!-- Login View (shown when not connected) -->
+    <div id="login-view" class="view">
+      <div class="view-content">
+        <h2>Connect to Recall</h2>
+        <p class="subtle">Sign in to start remembering.</p>
+
+        <form id="login-form">
+          <div class="field">
+            <label for="api-url">Server</label>
+            <input type="url" id="api-url" value="http://localhost:8000" placeholder="https://recall.example.com">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="you@example.com" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Password" required>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="login-btn">Connect Browser</button>
+          <p id="login-error" class="error" hidden></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Connected View (shown when connected) -->
+    <div id="connected-view" class="view" hidden>
+      <div class="view-content">
+        <!-- Status -->
+        <div class="status-card">
+          <div class="status-row">
+            <span class="status-label">Chrome</span>
+            <span class="status-badge" id="connection-status">
+              <span class="status-dot connected"></span>
+              Connected
+            </span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Last synced</span>
+            <span class="status-value" id="last-synced">Never</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Pending</span>
+            <span class="status-value" id="pending-count">0 events</span>
+          </div>
+        </div>
+
+        <!-- Error display -->
+        <div id="sync-error" class="error-card" hidden>
+          <span id="sync-error-text"></span>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <button class="btn btn-secondary" id="sync-btn">Sync Now</button>
+          <button class="btn btn-outline" id="pause-btn">Pause</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Quick actions -->
+        <a href="#" id="open-recall" class="action-link">Open Recall →</a>
+        <button class="btn btn-ghost btn-danger" id="disconnect-btn">Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

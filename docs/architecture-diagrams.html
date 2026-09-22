@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recall — Interactive Architecture & System Diagrams</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-base: #0a0a0f;
+      --bg-surface: #12121a;
+      --bg-surface-elevated: #1a1a26;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-medium: rgba(255, 255, 255, 0.16);
+      --border-focus: #6366f1;
+      --accent-primary: #6366f1;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -10vw;
+      left: 30vw;
+      width: 40vw;
+      height: 40vh;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    header {
+      padding: 16px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(18, 18, 26, 0.85);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-surface-elevated);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-primary);
+      color: #ffffff;
+      box-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    }
+
+    .container {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 40px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagram-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      min-height: 600px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagram-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .diagram-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .diagram-desc {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    #diagram-output {
+      flex: 1;
+      overflow-x: auto;
+      padding: 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 480px;
+    }
+
+    #diagram-output svg {
+      max-width: 100%;
+      height: auto;
+      filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.4));
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .meta-box {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    th {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      color: #c7d2fe;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <span>Recall Architecture</span>
+      <span class="badge">Interactive Diagrams</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="system" onclick="selectTab('system')">System Architecture</button>
+      <button class="tab-btn" data-tab="schema" onclick="selectTab('schema')">Database Schema (ERD)</button>
+      <button class="tab-btn" data-tab="extension" data-tab="extension" onclick="selectTab('extension')">Extension Pipeline</button>
+      <button class="tab-btn" data-tab="rag" onclick="selectTab('rag')">Retrieval Engine & RAG</button>
+      <button class="tab-btn" data-tab="privacy" onclick="selectTab('privacy')">Privacy & Security Model</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="diagram-card">
+      <div class="diagram-header">
+        <div>
+          <h2 id="tab-title" class="diagram-title">System Architecture</h2>
+          <p id="tab-desc" class="diagram-desc">End-to-end topology connecting Browser Extensions, React Web App, FastAPI API Layer, Data Stores, Background Workers, and the AI Layer.</p>
+        </div>
+      </div>
+
+      <div id="diagram-output">
+        <div style="color: var(--text-muted); font-size: 14px;">Rendering diagram...</div>
+      </div>
+
+      <div id="meta-content" class="meta-box" style="display: none;"></div>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      themeVariables: {
+        darkMode: true,
+        background: '#12121a',
+        primaryColor: '#6366f1',
+        primaryTextColor: '#f3f4f6',
+        primaryBorderColor: '#818cf8',
+        lineColor: '#818cf8',
+        secondaryColor: '#1a1a26',
+        tertiaryColor: '#1e1e2d'
+      }
+    });
+
+    const TAB_INFO = {
+      system: {
+        title: "System Architecture Topology",
+        desc: "End-to-end topology connecting Browser Extensions, React Web App, FastAPI API Layer, PostgreSQL 16 + pgvector, Redis, Background Workers, and AI Layer.",
+        meta: `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+            <div><strong>Browser Layer:</strong> Chrome MV3, Firefox, Safari web extensions.</div>
+            <div><strong>Web Application:</strong> React 18, Vite, TypeScript, Dark Glassmorphism.</div>
+            <div><strong>API Service:</strong> FastAPI, Asyncpg connection pool, JWT bearer auth.</div>
+            <div><strong>Data Stores:</strong> PostgreSQL 16 with native pgvector and Redis 7.0.</div>
+          </div>
+        `
+      },
+      schema: {
+        title: "Entity-Relationship Database Schema (13 Entities)",
+        desc: "PostgreSQL relational schema separating unique Page identity from BrowsingEvent visits, with indexed full-text GIN and vector distance lookups.",
+        meta: `
+          <table>
+            <thead>
+              <tr><th>Target Table & Columns</th><th>Index Type</th><th>Optimization Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>browsing_events(user_id, visited_at DESC)</code></td><td>B-tree</td><td>Instant chronological pagination & timeline rendering</td></tr>
+              <tr><td><code>pages(to_tsvector(title || content_text))</code></td><td>GIN Full-Text</td><td>Sub-millisecond keyword relevance searches</td></tr>
+              <tr><td><code>page_embeddings(embedding)</code></td><td>pgvector HNSW</td><td>1536-dimensional semantic similarity vector search</td></tr>
+              <tr><td><code>pages(url)</code></td><td>Unique B-tree</td><td>Cross-user URL normalization & deduplication</td></tr>
+            </tbody>
+          </table>
+        `
+      },
+      extension: {
+        title: "Browser Extension Architecture & Pipeline (Manifest V3)",
+        desc: "Event-driven background service worker with debouncing, synchronous privacy filtering, and local queue resilience in chrome.storage.local.",
+        meta: `
+          <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.7;">
+            <strong>Execution Pipeline:</strong>
+            1. Observes <code>tabs.onUpdated</code> with 2s debounce &bull;
+            2. Rejects sensitive URLs, passwords, credentials &bull;
+            3. Caches up to 500 events locally with 30s dedup &bull;
+            4. Batches every 30s or 20 events to <code>POST /api/events/batch</code> &bull;
+            5. Exponential backoff retry on offline recovery.
+          </div>
+        `
+      },
+      rag: {
+        title: "Hybrid Retrieval Engine & Grounded Conversational AI (RAG)",
+        desc: "Multi-signal ranking combining temporal proximity, domain matching, keyword relevance, and vector similarity into grounded responses with citations.",
+        meta: `
+          <table>
+            <thead>
+              <tr><th>Signal</th><th>Weight</th><th>Mechanism</th><th>Matching Memory Query</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Semantic Similarity</strong></td><td><code>0.35</code></td><td>pgvector Cosine Distance</td><td>Conceptual memory matches</td></tr>
+              <tr><td><strong>Keyword Relevance</strong></td><td><code>0.25</code></td><td>PostgreSQL ts_rank GIN</td><td>Exact terms in title/URL</td></tr>
+              <tr><td><strong>Temporal Proximity</strong></td><td><code>0.20</code></td><td>Time Window Filtering</td><td>"last week", "yesterday"</td></tr>
+              <tr><td><strong>Recency Decay</strong></td><td><code>0.10</code></td><td>Exponential Decay</td><td>Favors newer discoveries</td></tr>
+              <tr><td><strong>Session Cohesion</strong></td><td><code>0.10</code></td><td>Same-Session Cluster</td><td>Related journey pages</td></tr>
+            </tbody>
+          </table>
+        `
+      },
+      privacy: {
+        title: "Zero-Trust Privacy & Security Architecture",
+        desc: "Client-side pre-filtering guarantees credentials, form inputs, and cookies are never stored, transmitted, or logged.",
+        meta: `
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div style="color: #34d399;"><strong>✓ Permitted Metadata:</strong> URL, Title, Domain, Timestamp, Duration, Inferred Topic</div>
+            <div style="color: #f87171;"><strong>✗ Strictly Rejected:</strong> Passwords, Form Inputs, Session Cookies, Auth Tokens, Incognito Tabs</div>
+          </div>
+        `
+      }
+    };
+
+    const DIAGRAM_CODE = {
+      system: `graph TB
+    subgraph Browser ["Browser Layer"]
+        CE["Chrome Extension (MV3)"]
+        FE["Firefox / Safari Extension"]
+    end
+
+    subgraph WebApp ["Recall Web App"]
+        UI["React 18 + TypeScript + Vite"]
+    end
+
+    subgraph API ["API Layer"]
+        API_APP["FastAPI — Python 3.13"]
+        AUTH["Auth & JWT Middleware"]
+        RL["Rate Limiter"]
+    end
+
+    subgraph Storage ["Data Layer"]
+        PG[("PostgreSQL 16 + pgvector")]
+        RD[("Redis 7.0 Cache & Queue")]
+    end
+
+    subgraph Workers ["Background Workers"]
+        EMB["Embedding Worker"]
+        TOP["Topic Classifier"]
+        SES["Session Detector"]
+        IDX["Indexer"]
+    end
+
+    subgraph Retrieval ["Retrieval Engine"]
+        FTS["Full-Text Search (tsvector)"]
+        VS["Vector Search (pgvector)"]
+        MF["Metadata Filter (domain, browser)"]
+        TF["Time Filter (temporal parser)"]
+        RK["Reciprocal Rank Fusion (RRF)"]
+    end
+
+    subgraph AI ["AI Layer"]
+        LLM["LLM Provider (Grounded Synthesis)"]
+        EMBP["Embedding Provider (text-embedding-3-small)"]
+    end
+
+    CE -->|"Batch Events (JSON)"| API_APP
+    FE -->|"Batch Events (JSON)"| API_APP
+    UI -->|"REST & RAG Queries"| API_APP
+    API_APP --> AUTH
+    API_APP --> RL
+    API_APP --> PG
+    API_APP --> RD
+    RD --> EMB
+    RD --> TOP
+    RD --> SES
+    RD --> IDX
+    EMB --> EMBP
+    EMB --> PG
+    TOP --> PG
+    SES --> PG
+    IDX --> PG
+    API_APP --> FTS
+    API_APP --> VS
+    API_APP --> MF
+    API_APP --> TF
+    FTS --> PG
+    VS --> PG
+    MF --> PG
+    TF --> PG
+    RK --> LLM
+    API_APP --> LLM`,
+
+      schema: `erDiagram
+    users ||--o{ browser_connections : has
+    users ||--o{ browsing_events : generates
+    users ||--o{ conversations : creates
+    users ||--o{ excluded_domains : configures
+    users ||--o{ user_preferences : has
+    users ||--o{ memory_deletions : requests
+
+    browser_connections ||--o{ browsing_events : sources
+    pages ||--o{ browsing_events : referenced_by
+    pages ||--o{ page_embeddings : has
+    pages }o--|| domains : belongs_to
+    browsing_sessions ||--o{ browsing_events : contains
+    memory_topics ||--o{ page_topics : categorizes
+    pages ||--o{ page_topics : tagged_with
+    conversations ||--o{ conversation_messages : contains
+    search_queries ||--o{ browsing_events : triggers
+
+    users {
+        uuid id PK
+        string email
+        string password_hash
+        string display_name
+        timestamp created_at
+    }
+
+    browser_connections {
+        uuid id PK
+        uuid user_id FK
+        string browser_type
+        string connection_name
+        string auth_token_hash
+        boolean is_active
+    }
+
+    pages {
+        uuid id PK
+        string url
+        string title
+        uuid domain_id FK
+        text content_text
+        timestamp first_seen_at
+    }
+
+    domains {
+        uuid id PK
+        string domain_name
+        string favicon_url
+    }
+
+    browsing_events {
+        uuid id PK
+        uuid user_id FK
+        uuid browser_connection_id FK
+        uuid page_id FK
+        uuid session_id FK
+        timestamp visited_at
+        string source_browser
+    }
+
+    browsing_sessions {
+        uuid id PK
+        uuid user_id FK
+        string inferred_topic
+        timestamp started_at
+        timestamp ended_at
+    }
+
+    search_queries {
+        uuid id PK
+        uuid user_id FK
+        uuid browsing_event_id FK
+        string query_text
+        string search_engine
+    }
+
+    page_embeddings {
+        uuid id PK
+        uuid page_id FK
+        string model_name
+        timestamp created_at
+    }
+
+    memory_topics {
+        uuid id PK
+        uuid user_id FK
+        string name
+        string slug
+        string color
+    }
+
+    page_topics {
+        uuid page_id FK
+        uuid topic_id FK
+        float confidence
+    }
+
+    excluded_domains {
+        uuid id PK
+        uuid user_id FK
+        string domain_name
+    }
+
+    user_preferences {
+        uuid id PK
+        uuid user_id FK
+        string key
+        text value
+    }
+
+    conversations {
+        uuid id PK
+        uuid user_id FK
+        string title
+        timestamp created_at
+    }
+
+    conversation_messages {
+        uuid id PK
+        uuid conversation_id FK
+        string role
+        text content
+    }
+
+    memory_deletions {
+        uuid id PK
+        uuid user_id FK
+        string deletion_type
+        timestamp deleted_at
+    }`,
+
+      extension: `graph LR
+    subgraph Browser ["Chrome Extension (MV3)"]
+        SW["Service Worker (Event-driven)"]
+        POP["Popup UI (Status, Pairing, Pause)"]
+    end
+
+    subgraph Core ["Core Extension Logic"]
+        OBS["Event Observer (Debounced tabs.onUpdated)"]
+        PRIV["Privacy Filter (Excluded domains and credentials check)"]
+        Q["Local Resilient Queue (chrome.storage.local, max 500)"]
+        BAT["Batch Sender (Alarms: 30s interval or 20 events)"]
+        AUTH2["Auth Manager (JWT Token Bearer)"]
+    end
+
+    SW --> OBS
+    OBS --> PRIV
+    PRIV -->|"Permitted Events"| Q
+    Q --> BAT
+    BAT -->|"POST /api/events/batch"| API2["Recall API"]
+    POP --> AUTH2
+    AUTH2 --> API2
+    POP --> SW`,
+
+      rag: `graph TB
+    UQ["User Query (Natural Human Memory)"] --> QP["Query Intent Parser"]
+    
+    QP -->|"Extracts temporal hint"| TF2["Time Filter (Temporal Parser)"]
+    QP -->|"Extracts semantic intent"| VS2["Vector Search (pgvector cosine)"]
+    QP -->|"Extracts keywords"| FTS2["Full-Text Keyword Search (ts_rank)"]
+    QP -->|"Extracts domain hint"| MF2["Domain & Metadata Filter"]
+
+    TF2 --> CAND["Candidate Pool (Top 150)"]
+    VS2 --> CAND
+    FTS2 --> CAND
+    MF2 --> CAND
+
+    CAND --> RR["Reciprocal Rank Fusion (RRF) + Scoring"]
+    RR --> TOP2["Top K Ranked Memories (with Match Reasons)"]
+    TOP2 --> CTX["Context Builder & Citation Formatter"]
+    CTX --> LLM2["LLM Synthesis (Strict Grounding Prompt)"]
+    LLM2 --> RESP["Grounded Answer + Verified Clickable Citations"]`,
+
+      privacy: `graph TD
+    subgraph Client ["Client Ingestion Filter (Extension)"]
+        RAW["Browser Navigation Event"] --> SENS{"Sensitive Pattern Check"}
+        SENS -->|"Passwords / Forms / Cookies"| DROP1["Instant Discard (Never Recorded)"]
+        SENS -->|"Excluded Domain Match"| DROP2["Blocked by Privacy Rule"]
+        SENS -->|"Permitted Metadata"| STORE["Queue in chrome.storage"]
+    end
+
+    subgraph Server ["Server Storage & Retrieval Isolation"]
+        STORE -->|"Encrypted HTTPS Batch"| API3["Recall API Gateway"]
+        API3 --> ROW{"Row-Level User Auth"}
+        ROW -->|"user_id Scoped"| DB[("Private PostgreSQL Record")]
+        ROW -->|"Cross-User Access Attempt"| REJECT["403 Forbidden"]
+    end
+
+    subgraph Governance ["User Governance"]
+        DB --> EXP["JSON Data Export (Portability)"]
+        DB --> DEL["Individual / Date / Account Wipe"]
+        DB --> PAUSE["Master Sync Pause Switch"]
+    end`
+    };
+
+    let renderCounter = 0;
+
+    async function selectTab(tabKey) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabKey);
+      });
+
+      const info = TAB_INFO[tabKey];
+      if (info) {
+        document.getElementById('tab-title').textContent = info.title;
+        document.getElementById('tab-desc').textContent = info.desc;
+        const metaBox = document.getElementById('meta-content');
+        if (info.meta) {
+          metaBox.innerHTML = info.meta;
+          metaBox.style.display = 'block';
+        } else {
+          metaBox.style.display = 'none';
+        }
+      }
+
+      const output = document.getElementById('diagram-output');
+      output.innerHTML = '<div style="color: var(--text-muted); font-size: 14px;">Rendering diagram...</div>';
+
+      const code = DIAGRAM_CODE[tabKey];
+      if (!code) return;
+
+      renderCounter++;
+      const id = 'mermaid-render-' + renderCounter;
+
+      try {
+        const { svg } = await mermaid.render(id, code);
+        output.innerHTML = svg;
+      } catch (err) {
+        console.error('Mermaid render error:', err);
+        output.innerHTML = '<div style="color: #f87171; font-size: 14px;">Error rendering diagram: ' + err.message + '</div>';
+      }
+    }
+
+    // Initial render
+    window.addEventListener('DOMContentLoaded', () => {
+      selectTab('system');
+    });
+  </script>
+</body>
+</html>

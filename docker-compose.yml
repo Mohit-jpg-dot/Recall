@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL with pgvector ─────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: recall-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recall_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-recall}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recall"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: recall-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── API Server ───────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: recall-api
+    env_file: .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-recall}:${POSTGRES_PASSWORD:-recall_dev_password}@postgres:5432/${POSTGRES_DB:-recall}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+volumes:
+  postgres_data:
+  redis_data:
