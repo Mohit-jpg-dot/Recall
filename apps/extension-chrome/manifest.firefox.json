@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Recall — Web Memory",
+  "version": "0.1.0",
+  "description": "Remember everything you discover online. Recall turns your browsing into a private, searchable memory.",
+  "permissions": [
+    "tabs",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "scripts": ["service-worker.js"]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "recall@getrecall.app",
+      "strict_min_version": "109.0"
+    }
+  }
+}

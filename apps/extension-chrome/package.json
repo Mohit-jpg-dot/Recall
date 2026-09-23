@@ -4,7 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && cp manifest.json dist/ && mkdir -p dist/popup && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/",
+    "compile": "vite build && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/",
+    "build:chrome": "npm run compile && mkdir -p dist/chrome/popup && cp manifest.json dist/manifest.json && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/",
+    "build:firefox": "npm run compile && mkdir -p dist/firefox/popup && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/",
+    "build:safari": "npm run compile && mkdir -p dist/safari/popup && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/",
+    "build": "vite build && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/ && cp manifest.json dist/manifest.json && mkdir -p dist/chrome/popup dist/firefox/popup dist/safari/popup && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

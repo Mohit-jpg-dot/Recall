@@ -184,7 +184,7 @@ class ApiClient {
   }
 
   async exportData(): Promise<any> {
-    return this.request('/export', { method: 'POST' });
+    return this.request('/privacy/export', { method: 'GET' });
   }
 }
 

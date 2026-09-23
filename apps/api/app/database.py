@@ -47,10 +47,16 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db() -> None:
-    """Create all tables (development only — use Alembic in production)."""
+    """Create all tables and indexes (development / startup)."""
     async with engine.begin() as conn:
         # Enable pgvector extension
         await conn.execute(
             __import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector")
         )
         await conn.run_sync(Base.metadata.create_all)
+        # Ensure performance indexes exist
+        await conn.execute(__import__("sqlalchemy").text("CREATE INDEX IF NOT EXISTS idx_pages_domain_id ON pages (domain_id);"))
+        await conn.execute(__import__("sqlalchemy").text("CREATE INDEX IF NOT EXISTS idx_pages_title ON pages (title);"))
+        await conn.execute(__import__("sqlalchemy").text("CREATE INDEX IF NOT EXISTS idx_browsing_events_user_browser_visited ON browsing_events (user_id, source_browser, visited_at);"))
+        await conn.execute(__import__("sqlalchemy").text("CREATE INDEX IF NOT EXISTS idx_browsing_events_created ON browsing_events (created_at);"))
+        await conn.execute(__import__("sqlalchemy").text("CREATE INDEX IF NOT EXISTS idx_page_embeddings_vector ON page_embeddings USING hnsw (embedding vector_cosine_ops);"))

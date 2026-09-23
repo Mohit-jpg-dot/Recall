@@ -154,6 +154,11 @@ class Page(Base):
         back_populates="page", cascade="all, delete-orphan"
     )
 
+    __table_args__ = (
+        Index("idx_pages_domain_id", "domain_id"),
+        Index("idx_pages_title", "title"),
+    )
+
 
 # ── Browsing Sessions ────────────────────────────
 
@@ -222,9 +227,11 @@ class BrowsingEvent(Base):
 
     __table_args__ = (
         Index("idx_browsing_events_user_visited", "user_id", "visited_at"),
+        Index("idx_browsing_events_user_browser_visited", "user_id", "source_browser", "visited_at"),
         Index("idx_browsing_events_user_page", "user_id", "page_id"),
         Index("idx_browsing_events_session", "session_id"),
         Index("idx_browsing_events_connection", "browser_connection_id"),
+        Index("idx_browsing_events_created", "created_at"),
     )
 
 
@@ -276,6 +283,12 @@ class PageEmbedding(Base):
 
     __table_args__ = (
         Index("idx_page_embeddings_page", "page_id"),
+        Index(
+            "idx_page_embeddings_vector",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
 

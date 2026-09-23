@@ -1,16 +1,18 @@
 /**
- * Recall Extension — Service Worker
+ * Recall Extension — Service Worker / Background Script
  *
- * MV3 service worker that:
- * 1. Observes tab navigation events (lightweight)
- * 2. Filters through privacy rules
- * 3. Queues events locally in chrome.storage
+ * MV3 service worker / background script that:
+ * 1. Observes tab navigation events (lightweight metadata only)
+ * 2. Filters through privacy rules and excluded domains
+ * 3. Queues events locally in browser.storage
  * 4. Periodically batch-sends to the Recall API via alarm
  *
- * NO state in global variables — everything in chrome.storage.
- * NO AI processing — that happens on the backend.
+ * Multi-browser support: Chrome, Firefox, and Safari.
+ * NO state in global variables — everything in storage.
+ * NO heavy DOM scraping — ultra-lightweight.
  */
 
+import { browserAPI, detectBrowserType } from './lib/browser-api';
 import { shouldExclude, extractDomain, extractSearchQuery } from './lib/privacy-filter';
 import { enqueue, getQueueSize } from './lib/queue-manager';
 import { processQueue } from './lib/batch-sender';
@@ -24,15 +26,15 @@ const BATCH_TRIGGER_SIZE = 20;
 
 // ── Installation / Setup ────────────────────────
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+browserAPI.runtime.onInstalled.addListener(async (details) => {
   // Set up periodic sync alarm
-  await chrome.alarms.create(SYNC_ALARM_NAME, {
+  await browserAPI.alarms.create(SYNC_ALARM_NAME, {
     periodInMinutes: SYNC_INTERVAL_MINUTES,
   });
 
   // Initialize storage defaults if fresh install
   if (details.reason === 'install') {
-    const { auth } = await chrome.storage.local.get('auth');
+    const { auth } = await browserAPI.storage.local.get('auth');
     if (!auth) {
       const defaultAuth: AuthState = {
         access_token: null,
@@ -42,7 +44,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         is_connected: false,
         is_paused: false,
       };
-      await chrome.storage.local.set({
+      await browserAPI.storage.local.set({
         auth: defaultAuth,
         queue: [],
         sync: {
@@ -56,22 +58,21 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     }
   }
 
-  console.log('[Recall] Extension installed/updated');
+  console.log(`[Recall] Extension installed/updated on ${detectBrowserType()}`);
 });
 
 // ── Tab Navigation Observer ─────────────────────
-// This is the core event collection — lightweight metadata only
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+browserAPI.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Only process when page finishes loading (not every partial update)
   if (changeInfo.status !== 'complete') return;
   if (!tab.url || !tab.title) return;
 
   // Read state from storage (not global vars)
-  const { auth, excluded_domains = [] } = await chrome.storage.local.get([
+  const { auth, excluded_domains = [] } = (await browserAPI.storage.local.get([
     'auth',
     'excluded_domains',
-  ]) as { auth?: AuthState; excluded_domains?: string[] };
+  ])) as { auth?: AuthState; excluded_domains?: string[] };
 
   // Skip if not connected or paused
   if (!auth?.is_connected || auth.is_paused) return;
@@ -84,12 +85,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
   // Build lightweight event payload
   const searchResult = extractSearchQuery(tab.url);
+  const browserType = detectBrowserType();
+
   const event: QueuedEvent = {
     url: tab.url,
     title: tab.title,
     domain,
     visited_at: new Date().toISOString(),
-    source_browser: 'chrome',
+    source_browser: browserType,
     queued_at: Date.now(),
     metadata: searchResult
       ? { search_query: searchResult.query, search_engine: searchResult.engine }
@@ -99,49 +102,66 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const wasQueued = await enqueue(event);
 
   if (wasQueued) {
-    // Update badge with pending count
-    const queueSize = await getQueueSize();
-    await chrome.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : '' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#6366F1' });
+    // Update badge with pending count if action API is supported
+    try {
+      const queueSize = await getQueueSize();
+      if (browserAPI.action?.setBadgeText) {
+        await browserAPI.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : '' });
+        await browserAPI.action.setBadgeBackgroundColor({ color: '#6366F1' });
+      }
 
-    // Trigger immediate sync if batch threshold reached
-    if (queueSize >= BATCH_TRIGGER_SIZE) {
-      await processQueue();
-      const newSize = await getQueueSize();
-      await chrome.action.setBadgeText({ text: newSize > 0 ? String(newSize) : '' });
+      // Trigger immediate sync if batch threshold reached
+      if (queueSize >= BATCH_TRIGGER_SIZE) {
+        await processQueue();
+        const newSize = await getQueueSize();
+        if (browserAPI.action?.setBadgeText) {
+          await browserAPI.action.setBadgeText({ text: newSize > 0 ? String(newSize) : '' });
+        }
+      }
+    } catch {
+      // Ignore badge errors on browsers with different badge APIs
     }
   }
 });
 
 // ── Periodic Sync Alarm ─────────────────────────
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+browserAPI.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SYNC_ALARM_NAME) {
     await processQueue();
-    const queueSize = await getQueueSize();
-    await chrome.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : '' });
+    try {
+      const queueSize = await getQueueSize();
+      if (browserAPI.action?.setBadgeText) {
+        await browserAPI.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : '' });
+      }
+    } catch {
+      // Ignore badge errors
+    }
   }
 });
 
 // ── Message Handler (popup communication) ───────
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
     switch (message.type) {
       case 'GET_STATUS': {
-        const { auth, sync, queue = [] } = await chrome.storage.local.get([
-          'auth', 'sync', 'queue',
+        const { auth, sync, queue = [] } = await browserAPI.storage.local.get([
+          'auth',
+          'sync',
+          'queue',
         ]);
         sendResponse({
           auth,
           sync: { ...sync, pending_count: queue.length },
+          browser: detectBrowserType(),
         });
         break;
       }
 
       case 'FORCE_SYNC': {
         await processQueue();
-        const { sync, queue = [] } = await chrome.storage.local.get(['sync', 'queue']);
+        const { sync, queue = [] } = await browserAPI.storage.local.get(['sync', 'queue']);
         sendResponse({ sync: { ...sync, pending_count: queue.length } });
         break;
       }
@@ -156,7 +176,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           is_connected: true,
           is_paused: false,
         };
-        await chrome.storage.local.set({ auth });
+        await browserAPI.storage.local.set({ auth });
         sendResponse({ success: true });
         break;
       }
@@ -170,24 +190,28 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           is_connected: false,
           is_paused: false,
         };
-        await chrome.storage.local.set({ auth: defaultAuth, queue: [] });
-        await chrome.action.setBadgeText({ text: '' });
+        await browserAPI.storage.local.set({ auth: defaultAuth, queue: [] });
+        if (browserAPI.action?.setBadgeText) {
+          await browserAPI.action.setBadgeText({ text: '' });
+        }
         sendResponse({ success: true });
         break;
       }
 
       case 'TOGGLE_PAUSE': {
-        const { auth: currentAuth } = await chrome.storage.local.get('auth') as { auth?: AuthState };
+        const { auth: currentAuth } = (await browserAPI.storage.local.get('auth')) as {
+          auth?: AuthState;
+        };
         if (currentAuth) {
           currentAuth.is_paused = !currentAuth.is_paused;
-          await chrome.storage.local.set({ auth: currentAuth });
+          await browserAPI.storage.local.set({ auth: currentAuth });
           sendResponse({ is_paused: currentAuth.is_paused });
         }
         break;
       }
 
       case 'UPDATE_EXCLUDED_DOMAINS': {
-        await chrome.storage.local.set({ excluded_domains: message.payload.domains });
+        await browserAPI.storage.local.set({ excluded_domains: message.payload.domains });
         sendResponse({ success: true });
         break;
       }
@@ -196,5 +220,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         sendResponse({ error: 'Unknown message type' });
     }
   })();
-  return true; // Keep channel open for async response
+  return true; // Keep message channel open for async response
 });

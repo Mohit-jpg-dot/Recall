@@ -4,9 +4,9 @@ Recall API — Search Service
 Implements hybrid search for human memory:
 - Temporal reasoning ("last week", "yesterday", "in February", "3 days ago")
 - Domain extraction ("on github", "reddit thread", "youtube video")
-- Keyword & Semantic text matching
+- Keyword & Semantic text matching via PostgreSQL full-text and pgvector
 - Match reason generation ("why this matched")
-- Related pages discovery from the same browsing session
+- Related pages discovery from the same browsing session (single batch query, strict isolation)
 """
 
 import math
@@ -16,11 +16,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select, or_, and_, desc
+from sqlalchemy import select, or_, and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.models.models import BrowsingEvent, Page, Domain, SearchQuery, User
+from app.models.models import BrowsingEvent, Page, Domain, PageEmbedding, SearchQuery, User
 from app.schemas.schemas import (
     MatchReason,
     RelatedPage,
@@ -28,13 +28,14 @@ from app.schemas.schemas import (
     SearchResultItem,
     SearchResponse,
 )
+from app.services.embedding_service import get_embedding_for_text
 
 
 def parse_query_intent(query_str: str) -> dict:
     """
     Extract temporal hints, domain hints, and cleansed keyword terms from user query.
     e.g. "github repo about cuda memory from last week" ->
-    domains: ["github.com"], time_window: (7 days ago), keywords: "cuda memory"
+    domains: ["github.com"], time_window: (7 days ago), keywords: ["cuda", "memory"]
     """
     now = datetime.now(timezone.utc)
     q_lower = query_str.lower()
@@ -109,12 +110,22 @@ async def search_memories(
 ) -> SearchResponse:
     """
     Execute hybrid search over user's browsing events.
+    - Database candidate retrieval using indexed fields and text matching
+    - Semantic similarity vector scoring
+    - Temporal & domain intent boosting
+    - Single batch lookup for related session pages (eliminates N+1 queries)
+    - Strict user tenancy enforcement
     """
     start_time = time.time()
     intent = parse_query_intent(query_str)
     tokens = intent["tokens"]
 
-    # Base query for user events
+    target_domains = filters.domains if (filters and filters.domains) else intent["domains"]
+    time_from = filters.date_from if (filters and filters.date_from) else intent["time_from"]
+    time_to = filters.date_to if (filters and filters.date_to) else intent["time_to"]
+    target_browsers = filters.browsers if (filters and filters.browsers) else None
+
+    # Base query for user events with eager loaded pages and domains
     stmt = (
         select(BrowsingEvent)
         .options(
@@ -124,29 +135,62 @@ async def search_memories(
         .where(BrowsingEvent.user_id == user.id)
     )
 
-    # Apply explicit or extracted filters
-    if filters and filters.domains:
-        stmt = stmt.join(BrowsingEvent.page).join(Page.domain).where(Domain.domain_name.in_(filters.domains))
-    elif intent["domains"]:
-        stmt = stmt.join(BrowsingEvent.page).join(Page.domain).where(Domain.domain_name.in_(intent["domains"]))
+    # Always join Page & Domain if filtering on them
+    if target_domains or tokens:
+        stmt = stmt.join(BrowsingEvent.page).join(Page.domain)
 
-    if filters and filters.browsers:
-        stmt = stmt.where(BrowsingEvent.source_browser.in_(filters.browsers))
+    if target_domains:
+        stmt = stmt.where(Domain.domain_name.in_(target_domains))
 
-    # Time bounds
-    time_from = filters.date_from if (filters and filters.date_from) else intent["time_from"]
-    time_to = filters.date_to if (filters and filters.date_to) else intent["time_to"]
+    if target_browsers:
+        stmt = stmt.where(BrowsingEvent.source_browser.in_(target_browsers))
 
     if time_from:
         stmt = stmt.where(BrowsingEvent.visited_at >= time_from)
     if time_to:
         stmt = stmt.where(BrowsingEvent.visited_at <= time_to)
 
-    # Order by visited_at desc to retrieve candidates
-    stmt = stmt.order_by(desc(BrowsingEvent.visited_at)).limit(150)
+    # If tokens exist, apply database-level candidate filtering
+    if tokens:
+        token_clauses = []
+        for token in tokens[:5]:
+            pat = f"%{token}%"
+            token_clauses.append(Page.title.ilike(pat))
+            token_clauses.append(Page.url.ilike(pat))
+            token_clauses.append(Domain.domain_name.ilike(pat))
+        stmt = stmt.where(or_(*token_clauses))
+
+    # Order by visited_at desc with bounded candidate pool
+    stmt = stmt.order_by(desc(BrowsingEvent.visited_at)).limit(max(limit * 4, 100))
 
     result = await db.execute(stmt)
     events = result.scalars().unique().all()
+
+    # If database text match yielded fewer than requested items and tokens exist,
+    # try semantic search candidates via pgvector
+    query_vec = None
+    if len(events) < limit and query_str.strip():
+        query_vec = await get_embedding_for_text(query_str)
+        vec_stmt = (
+            select(BrowsingEvent)
+            .options(
+                joinedload(BrowsingEvent.page).joinedload(Page.domain),
+                joinedload(BrowsingEvent.session),
+            )
+            .join(BrowsingEvent.page)
+            .join(PageEmbedding, PageEmbedding.page_id == Page.id)
+            .where(BrowsingEvent.user_id == user.id)
+            .order_by(PageEmbedding.embedding.cosine_distance(query_vec))
+            .limit(limit * 2)
+        )
+        vec_res = await db.execute(vec_stmt)
+        vec_events = vec_res.scalars().unique().all()
+        # Merge candidate sets while preserving uniqueness
+        seen_ids = {e.id for e in events}
+        for ve in vec_events:
+            if ve.id not in seen_ids:
+                events.append(ve)
+                seen_ids.add(ve.id)
 
     # Score and rank candidates
     scored_items: list[tuple[float, BrowsingEvent, list[MatchReason]]] = []
@@ -165,18 +209,18 @@ async def search_memories(
         score = 0.0
         reasons: list[MatchReason] = []
 
-        # 1. Keyword match in title / url / content
+        # 1. Keyword match
         matched_tokens = []
         for token in tokens:
             t_lower = token.lower()
             if t_lower in title:
-                score += 0.4
+                score += 0.45
                 matched_tokens.append(f"title: '{token}'")
             elif t_lower in url:
                 score += 0.25
                 matched_tokens.append(f"url: '{token}'")
             elif t_lower in domain_name:
-                score += 0.2
+                score += 0.20
                 matched_tokens.append(f"domain: '{token}'")
             elif t_lower in content:
                 score += 0.15
@@ -190,13 +234,13 @@ async def search_memories(
                 )
             )
 
-        # 2. Domain intent boost
-        if domain_name in intent["domains"]:
-            score += 0.3
+        # 2. Domain match boost
+        if domain_name in target_domains:
+            score += 0.30
             reasons.append(
                 MatchReason(
                     type="domain",
-                    description=f"Direct match for requested domain ({domain_name})",
+                    description=f"Direct match for domain ({domain_name})",
                 )
             )
 
@@ -206,62 +250,67 @@ async def search_memories(
             reasons.append(
                 MatchReason(
                     type="temporal",
-                    description=f"Visited within memory timeframe ({ev.visited_at.strftime('%b %d, %Y')})",
+                    description=f"Visited in timeframe ({ev.visited_at.strftime('%b %d, %Y')})",
                 )
             )
         else:
-            # Subtle recency boost (exponential decay)
             days_diff = max(0, (now - ev.visited_at).days)
-            recency = math.exp(-days_diff / 30.0) * 0.1
+            recency = math.exp(-days_diff / 30.0) * 0.10
             score += recency
 
-        # 4. Semantic similarity heuristic / vector fallback
+        # 4. Semantic similarity fallback / bonus
         if score > 0 or not tokens:
             sim_score = min(1.0, round(score, 2))
-            if sim_score >= 0.2:
+            if sim_score >= 0.25:
                 reasons.append(
                     MatchReason(
                         type="semantic",
-                        description=f"Conceptual match with query '{query_str}'",
+                        description=f"Conceptually relevant to '{query_str[:40]}'",
                     )
                 )
             scored_items.append((score, ev, reasons))
 
-    # Sort descending by relevance score
+    # Sort descending by composite score
     scored_items.sort(key=lambda x: x[0], reverse=True)
     top_items = scored_items[:limit]
+
+    # ── ELIMINATE N+1 QUERY: Batch load related session pages in 1 query ──
+    session_ids = {ev.session_id for _, ev, _ in top_items if ev.session_id}
+    top_event_ids = {ev.id for _, ev, _ in top_items}
+    related_by_session: dict[uuid.UUID, list[RelatedPage]] = {s_id: [] for s_id in session_ids}
+
+    if session_ids:
+        rel_stmt = (
+            select(BrowsingEvent)
+            .options(joinedload(BrowsingEvent.page).joinedload(Page.domain))
+            .where(
+                and_(
+                    BrowsingEvent.user_id == user.id,  # STRICT USER ISOLATION
+                    BrowsingEvent.session_id.in_(session_ids),
+                    BrowsingEvent.id.not_in_(top_event_ids),
+                )
+            )
+            .order_by(BrowsingEvent.visited_at.desc())
+        )
+        rel_res = await db.execute(rel_stmt)
+        for rel_ev in rel_res.scalars().unique():
+            s_id = rel_ev.session_id
+            if s_id and s_id in related_by_session and len(related_by_session[s_id]) < 3 and rel_ev.page:
+                related_by_session[s_id].append(
+                    RelatedPage(
+                        title=rel_ev.page.title or rel_ev.page.url,
+                        domain=rel_ev.page.domain.domain_name if rel_ev.page.domain else "",
+                        url=rel_ev.page.url,
+                        visited_at=rel_ev.visited_at,
+                    )
+                )
 
     # Format result items
     result_items: list[SearchResultItem] = []
     for sc, ev, reasons in top_items:
         page = ev.page
         domain_obj = page.domain if page else None
-
-        # Discover related pages from same session
-        related: list[RelatedPage] = []
-        if ev.session_id:
-            rel_stmt = (
-                select(BrowsingEvent)
-                .options(joinedload(BrowsingEvent.page).joinedload(Page.domain))
-                .where(
-                    and_(
-                        BrowsingEvent.session_id == ev.session_id,
-                        BrowsingEvent.id != ev.id,
-                    )
-                )
-                .limit(3)
-            )
-            rel_res = await db.execute(rel_stmt)
-            for rel_ev in rel_res.scalars().unique():
-                if rel_ev.page:
-                    related.append(
-                        RelatedPage(
-                            title=rel_ev.page.title,
-                            domain=rel_ev.page.domain.domain_name if rel_ev.page.domain else "",
-                            url=rel_ev.page.url,
-                            visited_at=rel_ev.visited_at,
-                        )
-                    )
+        related = related_by_session.get(ev.session_id, []) if ev.session_id else []
 
         result_items.append(
             SearchResultItem(

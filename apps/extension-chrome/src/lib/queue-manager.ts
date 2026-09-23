@@ -7,6 +7,7 @@
  * - Provides deduplication within the queue
  */
 
+import { browserAPI } from './browser-api';
 import type { QueuedEvent } from './types';
 
 const STORAGE_KEY = 'queue';
@@ -18,7 +19,7 @@ const DEDUP_WINDOW_MS = 30_000; // 30 seconds
  * Returns false if the event was deduplicated.
  */
 export async function enqueue(event: QueuedEvent): Promise<boolean> {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
 
   // Deduplication: skip if same URL visited within 30s
   const isDuplicate = queue.some(
@@ -39,7 +40,7 @@ export async function enqueue(event: QueuedEvent): Promise<boolean> {
     queue.splice(0, queue.length - MAX_QUEUE_SIZE);
   }
 
-  await chrome.storage.local.set({ [STORAGE_KEY]: queue });
+  await browserAPI.storage.local.set({ [STORAGE_KEY]: queue });
   return true;
 }
 
@@ -47,7 +48,7 @@ export async function enqueue(event: QueuedEvent): Promise<boolean> {
  * Get all queued events.
  */
 export async function getQueue(): Promise<QueuedEvent[]> {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
   return queue;
 }
 
@@ -56,16 +57,16 @@ export async function getQueue(): Promise<QueuedEvent[]> {
  * Only removes events that were queued before the cutoff time.
  */
 export async function dequeue(count: number): Promise<void> {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
   const remaining = queue.slice(count);
-  await chrome.storage.local.set({ [STORAGE_KEY]: remaining });
+  await browserAPI.storage.local.set({ [STORAGE_KEY]: remaining });
 }
 
 /**
  * Get the current queue size.
  */
 export async function getQueueSize(): Promise<number> {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY) as { queue?: QueuedEvent[] };
   return queue.length;
 }
 
@@ -73,5 +74,5 @@ export async function getQueueSize(): Promise<number> {
  * Clear the entire queue.
  */
 export async function clearQueue(): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY]: [] });
+  await browserAPI.storage.local.set({ [STORAGE_KEY]: [] });
 }

@@ -60,21 +60,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     <div style={{
       position: 'fixed',
       inset: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
+      backgroundColor: 'rgba(5, 6, 9, 0.82)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 100,
       padding: '20px',
+      animation: 'fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
     }}>
       <div className="glass-panel" style={{
         width: '100%',
-        maxWidth: '420px',
-        padding: '32px',
+        maxWidth: '430px',
+        padding: '36px',
         position: 'relative',
-        boxShadow: 'var(--shadow-lg)',
-        border: '1px solid var(--border-medium)',
+        boxShadow: '0 24px 64px -12px rgba(0, 0, 0, 0.9), 0 0 35px -5px rgba(99, 102, 241, 0.3)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
+        borderRadius: 'var(--radius-xl)',
+        backgroundColor: 'var(--surface-glass-modal)',
       }}>
         {/* Close Button */}
         <button
@@ -84,18 +88,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             top: '20px',
             right: '20px',
             color: 'var(--text-muted)',
-            padding: '4px',
+            padding: '6px',
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all var(--transition-fast)',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-muted)';
+            e.currentTarget.style.backgroundColor = 'transparent';
           }}
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px' }}>
-            {isRegister ? 'Join Recall' : 'Welcome Back'}
+        <div style={{ textAlign: 'center', marginBottom: '26px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '6px', letterSpacing: '-0.025em' }}>
+            {isRegister ? 'Join Recall' : 'Welcome to Recall'}
           </h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            {isRegister ? 'Start building your personal web memory' : 'Access your private browsing memory'}
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            {isRegister ? 'Start building your private, searchable web memory' : 'Access your private browsing memory across devices'}
           </p>
         </div>
 
@@ -107,13 +124,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           className="btn btn-secondary"
           style={{
             width: '100%',
-            marginBottom: '20px',
+            marginBottom: '22px',
             gap: '8px',
             padding: '12px',
-            backgroundColor: 'rgba(99, 102, 241, 0.12)',
-            border: '1px solid rgba(99, 102, 241, 0.3)',
+            backgroundColor: 'rgba(99, 102, 241, 0.14)',
+            border: '1px solid rgba(129, 140, 248, 0.35)',
             color: '#c7d2fe',
             fontWeight: 600,
+            boxShadow: '0 4px 16px rgba(99, 102, 241, 0.2)',
           }}
         >
           <Sparkles size={16} color="var(--accent-light)" />
@@ -123,8 +141,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
-          margin: '16px 0',
+          gap: '12px',
+          margin: '18px 0',
           fontSize: '12px',
           color: 'var(--text-muted)',
         }}>
@@ -137,11 +155,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <div style={{
             padding: '10px 14px',
             backgroundColor: 'var(--color-danger-bg)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            border: '1px solid rgba(244, 63, 94, 0.3)',
             borderRadius: 'var(--radius-sm)',
-            color: '#f87171',
+            color: '#fda4af',
             fontSize: '13px',
             marginBottom: '16px',
+            lineHeight: 1.4,
           }}>
             {error}
           </div>
@@ -157,10 +176,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 display: 'flex',
                 alignItems: 'center',
                 backgroundColor: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
+                border: '1px solid var(--border-medium)',
                 borderRadius: 'var(--radius-md)',
-                padding: '8px 12px',
-                gap: '8px',
+                padding: '9px 14px',
+                gap: '10px',
+                transition: 'border-color var(--transition-fast)',
               }}>
                 <UserIcon size={16} color="var(--text-muted)" />
                 <input
@@ -182,10 +202,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               display: 'flex',
               alignItems: 'center',
               backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
+              border: '1px solid var(--border-medium)',
               borderRadius: 'var(--radius-md)',
-              padding: '8px 12px',
-              gap: '8px',
+              padding: '9px 14px',
+              gap: '10px',
+              transition: 'border-color var(--transition-fast)',
             }}>
               <Mail size={16} color="var(--text-muted)" />
               <input
@@ -207,10 +228,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               display: 'flex',
               alignItems: 'center',
               backgroundColor: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
+              border: '1px solid var(--border-medium)',
               borderRadius: 'var(--radius-md)',
-              padding: '8px 12px',
-              gap: '8px',
+              padding: '9px 14px',
+              gap: '10px',
+              transition: 'border-color var(--transition-fast)',
             }}>
               <Lock size={16} color="var(--text-muted)" />
               <input
@@ -228,13 +250,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
             type="submit"
             disabled={loading}
             className="btn btn-primary"
-            style={{ width: '100%', marginTop: '8px', padding: '12px' }}
+            style={{ width: '100%', marginTop: '8px', padding: '12px', fontSize: '14.5px' }}
           >
-            {loading ? 'Please wait...' : (isRegister ? 'Create Account' : 'Sign In')}
+            {loading ? 'Authenticating...' : (isRegister ? 'Create Account' : 'Sign In')}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: '18px', fontSize: '13px', color: 'var(--text-muted)' }}>
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
           {isRegister ? 'Already have an account?' : "Don't have an account yet?"}{' '}
           <button
             onClick={() => { setIsRegister(!isRegister); setError(null); }}

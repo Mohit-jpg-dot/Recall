@@ -1,3 +1,10 @@
+const browserAPI = typeof globalThis.browser !== "undefined" ? globalThis.browser : globalThis.chrome;
+function detectBrowserType() {
+  const ua = (typeof navigator !== "undefined" ? navigator.userAgent : "").toLowerCase();
+  if (ua.includes("firefox")) return "firefox";
+  if (ua.includes("safari") && !ua.includes("chrome")) return "safari";
+  return "chrome";
+}
 function shouldExclude(url, domain, excludedDomains) {
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return true;
@@ -46,7 +53,7 @@ const STORAGE_KEY = "queue";
 const MAX_QUEUE_SIZE = 500;
 const DEDUP_WINDOW_MS = 3e4;
 async function enqueue(event) {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY);
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY);
   const isDuplicate = queue.some(
     (existing) => existing.url === event.url && Math.abs(existing.queued_at - event.queued_at) < DEDUP_WINDOW_MS
   );
@@ -57,35 +64,51 @@ async function enqueue(event) {
   if (queue.length > MAX_QUEUE_SIZE) {
     queue.splice(0, queue.length - MAX_QUEUE_SIZE);
   }
-  await chrome.storage.local.set({ [STORAGE_KEY]: queue });
+  await browserAPI.storage.local.set({ [STORAGE_KEY]: queue });
   return true;
 }
 async function getQueue() {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY);
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY);
   return queue;
 }
 async function dequeue(count) {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY);
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY);
   const remaining = queue.slice(count);
-  await chrome.storage.local.set({ [STORAGE_KEY]: remaining });
+  await browserAPI.storage.local.set({ [STORAGE_KEY]: remaining });
 }
 async function getQueueSize() {
-  const { queue = [] } = await chrome.storage.local.get(STORAGE_KEY);
+  const { queue = [] } = await browserAPI.storage.local.get(STORAGE_KEY);
   return queue.length;
 }
-const BATCH_SIZE = 20;
+const BATCH_SIZE = 25;
+const REQUEST_TIMEOUT_MS = 1e4;
+let consecutiveFailures = 0;
+let nextAllowedRetryTimestamp = 0;
 async function getAuth() {
-  const { auth } = await chrome.storage.local.get("auth");
+  const { auth } = await browserAPI.storage.local.get("auth");
   return auth || null;
 }
 async function updateSyncStatus(update) {
-  const { sync = {} } = await chrome.storage.local.get("sync");
-  await chrome.storage.local.set({
+  const { sync = {} } = await browserAPI.storage.local.get("sync");
+  await browserAPI.storage.local.set({
     sync: { ...sync, ...update }
   });
 }
+async function fetchWithTimeout(url, options, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    return response;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function sendBatch(events, auth) {
-  const response = await fetch(`${auth.api_url}/api/events/batch`, {
+  const response = await fetchWithTimeout(`${auth.api_url}/api/events/batch`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -99,7 +122,7 @@ async function sendBatch(events, auth) {
   if (response.status === 401) {
     const refreshed = await refreshAccessToken(auth);
     if (refreshed) {
-      const retryResponse = await fetch(`${auth.api_url}/api/events/batch`, {
+      const retryResponse = await fetchWithTimeout(`${auth.api_url}/api/events/batch`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +134,7 @@ async function sendBatch(events, auth) {
         })
       });
       if (!retryResponse.ok) {
-        throw new Error(`API error: ${retryResponse.status}`);
+        throw new Error(`API error after refresh: ${retryResponse.status}`);
       }
       return retryResponse.json();
     }
@@ -124,7 +147,7 @@ async function sendBatch(events, auth) {
 }
 async function refreshAccessToken(auth) {
   try {
-    const response = await fetch(`${auth.api_url}/api/auth/refresh`, {
+    const response = await fetchWithTimeout(`${auth.api_url}/api/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: auth.refresh_token })
@@ -136,13 +159,20 @@ async function refreshAccessToken(auth) {
       access_token: data.access_token,
       refresh_token: data.refresh_token
     };
-    await chrome.storage.local.set({ auth: updatedAuth });
+    await browserAPI.storage.local.set({ auth: updatedAuth });
     return updatedAuth;
   } catch {
     return null;
   }
 }
 async function processQueue() {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return;
+  }
+  const now = Date.now();
+  if (now < nextAllowedRetryTimestamp) {
+    return;
+  }
   const auth = await getAuth();
   if (!(auth == null ? void 0 : auth.is_connected) || auth.is_paused || !auth.access_token) {
     return;
@@ -152,7 +182,6 @@ async function processQueue() {
     return;
   }
   await updateSyncStatus({ is_syncing: true, last_error: null });
-  let totalSent = 0;
   try {
     const eventsToSend = queue.slice(0, BATCH_SIZE);
     const payloads = eventsToSend.map((e) => ({
@@ -163,33 +192,38 @@ async function processQueue() {
       source_browser: e.source_browser,
       metadata: e.metadata
     }));
-    const result = await sendBatch(payloads, auth);
-    totalSent = result.accepted + result.rejected;
+    await sendBatch(payloads, auth);
     await dequeue(eventsToSend.length);
+    consecutiveFailures = 0;
+    nextAllowedRetryTimestamp = 0;
     await updateSyncStatus({
       is_syncing: false,
       last_synced_at: Date.now(),
       pending_count: Math.max(0, queue.length - eventsToSend.length)
     });
   } catch (error) {
+    consecutiveFailures += 1;
+    const baseDelay = Math.min(6e4, 2e3 * Math.pow(2, Math.min(consecutiveFailures, 5)));
+    const jitter = Math.floor(Math.random() * 1e3);
+    nextAllowedRetryTimestamp = Date.now() + baseDelay + jitter;
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     await updateSyncStatus({
       is_syncing: false,
       last_error: errorMessage,
       pending_count: queue.length
     });
-    console.error("[Recall] Sync error:", errorMessage);
+    console.warn(`[Recall] Sync error (attempt ${consecutiveFailures}, backoff ${baseDelay}ms):`, errorMessage);
   }
 }
 const SYNC_ALARM_NAME = "recall-sync";
 const SYNC_INTERVAL_MINUTES = 0.5;
 const BATCH_TRIGGER_SIZE = 20;
-chrome.runtime.onInstalled.addListener(async (details) => {
-  await chrome.alarms.create(SYNC_ALARM_NAME, {
+browserAPI.runtime.onInstalled.addListener(async (details) => {
+  await browserAPI.alarms.create(SYNC_ALARM_NAME, {
     periodInMinutes: SYNC_INTERVAL_MINUTES
   });
   if (details.reason === "install") {
-    const { auth } = await chrome.storage.local.get("auth");
+    const { auth } = await browserAPI.storage.local.get("auth");
     if (!auth) {
       const defaultAuth = {
         access_token: null,
@@ -199,7 +233,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         is_connected: false,
         is_paused: false
       };
-      await chrome.storage.local.set({
+      await browserAPI.storage.local.set({
         auth: defaultAuth,
         queue: [],
         sync: {
@@ -212,12 +246,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       });
     }
   }
-  console.log("[Recall] Extension installed/updated");
+  console.log(`[Recall] Extension installed/updated on ${detectBrowserType()}`);
 });
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+browserAPI.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  var _a, _b;
   if (changeInfo.status !== "complete") return;
   if (!tab.url || !tab.title) return;
-  const { auth, excluded_domains = [] } = await chrome.storage.local.get([
+  const { auth, excluded_domains = [] } = await browserAPI.storage.local.get([
     "auth",
     "excluded_domains"
   ]);
@@ -226,52 +261,68 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (!domain) return;
   if (shouldExclude(tab.url, domain, excluded_domains)) return;
   const searchResult = extractSearchQuery(tab.url);
+  const browserType = detectBrowserType();
   const event = {
     url: tab.url,
     title: tab.title,
     domain,
     visited_at: (/* @__PURE__ */ new Date()).toISOString(),
-    source_browser: "chrome",
+    source_browser: browserType,
     queued_at: Date.now(),
     metadata: searchResult ? { search_query: searchResult.query, search_engine: searchResult.engine } : void 0
   };
   const wasQueued = await enqueue(event);
   if (wasQueued) {
-    const queueSize = await getQueueSize();
-    await chrome.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : "" });
-    await chrome.action.setBadgeBackgroundColor({ color: "#6366F1" });
-    if (queueSize >= BATCH_TRIGGER_SIZE) {
-      await processQueue();
-      const newSize = await getQueueSize();
-      await chrome.action.setBadgeText({ text: newSize > 0 ? String(newSize) : "" });
+    try {
+      const queueSize = await getQueueSize();
+      if ((_a = browserAPI.action) == null ? void 0 : _a.setBadgeText) {
+        await browserAPI.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : "" });
+        await browserAPI.action.setBadgeBackgroundColor({ color: "#6366F1" });
+      }
+      if (queueSize >= BATCH_TRIGGER_SIZE) {
+        await processQueue();
+        const newSize = await getQueueSize();
+        if ((_b = browserAPI.action) == null ? void 0 : _b.setBadgeText) {
+          await browserAPI.action.setBadgeText({ text: newSize > 0 ? String(newSize) : "" });
+        }
+      }
+    } catch {
     }
   }
 });
-chrome.alarms.onAlarm.addListener(async (alarm) => {
+browserAPI.alarms.onAlarm.addListener(async (alarm) => {
+  var _a;
   if (alarm.name === SYNC_ALARM_NAME) {
     await processQueue();
-    const queueSize = await getQueueSize();
-    await chrome.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : "" });
+    try {
+      const queueSize = await getQueueSize();
+      if ((_a = browserAPI.action) == null ? void 0 : _a.setBadgeText) {
+        await browserAPI.action.setBadgeText({ text: queueSize > 0 ? String(queueSize) : "" });
+      }
+    } catch {
+    }
   }
 });
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
+    var _a;
     switch (message.type) {
       case "GET_STATUS": {
-        const { auth, sync, queue = [] } = await chrome.storage.local.get([
+        const { auth, sync, queue = [] } = await browserAPI.storage.local.get([
           "auth",
           "sync",
           "queue"
         ]);
         sendResponse({
           auth,
-          sync: { ...sync, pending_count: queue.length }
+          sync: { ...sync, pending_count: queue.length },
+          browser: detectBrowserType()
         });
         break;
       }
       case "FORCE_SYNC": {
         await processQueue();
-        const { sync, queue = [] } = await chrome.storage.local.get(["sync", "queue"]);
+        const { sync, queue = [] } = await browserAPI.storage.local.get(["sync", "queue"]);
         sendResponse({ sync: { ...sync, pending_count: queue.length } });
         break;
       }
@@ -285,7 +336,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           is_connected: true,
           is_paused: false
         };
-        await chrome.storage.local.set({ auth });
+        await browserAPI.storage.local.set({ auth });
         sendResponse({ success: true });
         break;
       }
@@ -298,22 +349,24 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           is_connected: false,
           is_paused: false
         };
-        await chrome.storage.local.set({ auth: defaultAuth, queue: [] });
-        await chrome.action.setBadgeText({ text: "" });
+        await browserAPI.storage.local.set({ auth: defaultAuth, queue: [] });
+        if ((_a = browserAPI.action) == null ? void 0 : _a.setBadgeText) {
+          await browserAPI.action.setBadgeText({ text: "" });
+        }
         sendResponse({ success: true });
         break;
       }
       case "TOGGLE_PAUSE": {
-        const { auth: currentAuth } = await chrome.storage.local.get("auth");
+        const { auth: currentAuth } = await browserAPI.storage.local.get("auth");
         if (currentAuth) {
           currentAuth.is_paused = !currentAuth.is_paused;
-          await chrome.storage.local.set({ auth: currentAuth });
+          await browserAPI.storage.local.set({ auth: currentAuth });
           sendResponse({ is_paused: currentAuth.is_paused });
         }
         break;
       }
       case "UPDATE_EXCLUDED_DOMAINS": {
-        await chrome.storage.local.set({ excluded_domains: message.payload.domains });
+        await browserAPI.storage.local.set({ excluded_domains: message.payload.domains });
         sendResponse({ success: true });
         break;
       }

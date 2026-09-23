@@ -69,18 +69,15 @@ async def generate_grounded_response(
     Uses OpenAI if API key is provided, or a high-quality local synthesizer.
     """
     if not sources:
-        return (
-            f"I searched through your browsing memory for **\"{query}\"**, but couldn't find any matching records. "
-            "Make sure the Recall browser extension is active and connected, or try searching with broader terms or an approximate date."
-        )
+        return "I couldn't find enough evidence in your browsing memories."
 
-    # If OpenAI API key is set, attempt call
+    # If OpenAI API key is set, attempt call with compact context (top 4 sources max)
     if settings.openai_api_key:
         try:
             import httpx
 
             context_items = []
-            for i, src in enumerate(sources, 1):
+            for i, src in enumerate(sources[:4], 1):
                 context_items.append(
                     f"[{i}] Title: {src.title}\n"
                     f"    URL: {src.url}\n"
@@ -93,14 +90,15 @@ async def generate_grounded_response(
             system_prompt = (
                 "You are Recall, a personal memory assistant for the user's web browsing history. "
                 "Answer the user's question using ONLY the provided browsing memory sources. "
-                "Be conversational, precise, and helpful. Always cite the exact page titles, domains, and dates. "
-                "Do NOT make up facts, URLs, or events that do not appear in the sources. "
-                "If the sources don't fully answer the question, state what was found and what is uncertain."
+                "Be concise, precise, and grounded. Always cite the exact page titles, domains, and dates. "
+                "Do NOT make up facts, URLs, dates, or events that do not appear in the sources. "
+                "If evidence is insufficient, say: 'I couldn't find enough evidence in your browsing memories.' "
+                "If several results are plausible, say: 'I found several possible matches in your browsing history.'"
             )
 
             user_prompt = f"User Question: {query}\n\nRetrieved Web Memories:\n{context_str}"
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.post(
                     "https://api.openai.com/v1/chat/completions",
                     headers={"Authorization": f"Bearer {settings.openai_api_key}"},
@@ -110,7 +108,7 @@ async def generate_grounded_response(
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
                         ],
-                        "temperature": 0.2,
+                        "temperature": 0.1,
                     },
                 )
                 if resp.status_code == 200:
@@ -122,22 +120,22 @@ async def generate_grounded_response(
     # Deterministic high-quality synthesis
     top = sources[0]
     date_str = top.visited_at.strftime("%B %d, %Y")
-    
+
     if len(sources) == 1:
         return (
             f"Based on your browsing memory, you visited **[{top.title}]({top.url})** on **{top.domain}** on **{date_str}**.\n\n"
-            f"This matched your query with a relevance of {int(top.relevance_score * 100)}%."
+            f"Match relevance: {int(top.relevance_score * 100)}%."
         )
 
     lines = [
-        f"I found **{len(sources)} relevant pages** in your browsing history related to **\"{query}\"**:\n"
+        f"I found several possible matches in your browsing history for **\"{query}\"**:\n"
     ]
     for i, s in enumerate(sources[:4], 1):
         s_date = s.visited_at.strftime("%b %d, %Y")
         lines.append(f"{i}. **[{s.title}]({s.url})** on `{s.domain}` (visited {s_date})")
 
     lines.append(
-        f"\nThe most relevant result is **[{top.title}]({top.url})**, which you explored on {date_str}."
+        f"\nThe closest match is **[{top.title}]({top.url})**, visited on {date_str}."
     )
     return "\n".join(lines)
 

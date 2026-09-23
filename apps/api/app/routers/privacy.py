@@ -182,6 +182,7 @@ async def remove_excluded_domain(
     return MessageResponse(message="Domain removed from exclusion list")
 
 
+@router.get("/export")
 @router.post("/export")
 async def export_data(
     user: User = Depends(get_current_user),
