@@ -1,590 +1,707 @@
-# Recall — A Personal Web Memory Platform
+# Recall
 
-> **Never lose a link again.** Search your entire web browsing history using natural, imperfect human memory.
+### Your browser remembers everything. You don't.
+
+**Recall is a privacy-first personal memory layer for the web.**
+
+It lets you search your browsing history using the way you actually remember things — **not exact URLs, not perfect keywords, not browser-history archaeology.**
+
+> *“What was that GitHub repo about CUDA memory I saw last week?”*
+
+> *“There was a psychological thriller someone recommended on Reddit…”*
+
+> *“Find that React animation tutorial I watched yesterday.”*
+
+**Recall finds the memory.**
+
+---
+
+<p align="center">
+
+**🧠 Remember the idea. Recall the source.**
+
+</p>
+
+---
+
+## Why Recall?
+
+The internet is full of things we discover and immediately forget.
+
+An article.
+
+A GitHub repository.
+
+A YouTube video.
+
+A Stack Overflow answer.
+
+A research paper.
+
+A product.
+
+A Reddit thread.
+
+You remember **what it was about**.
+
+You might remember **roughly when you saw it**.
+
+You might remember **where you saw it**.
+
+But you probably don't remember the URL.
+
+Traditional browser history expects you to search like a machine.
+
+Recall lets you search like a human.
+
+### Instead of:
+
+```text
+github.com/...
+```
+
+or
+
+```text
+cuda memory
+```
+
+### You can ask:
+
+```text
+that github repo about cuda memory from last week
+```
+
+Recall combines **semantic meaning + keywords + time + domain + browsing context** to reconstruct what you were looking for.
+
+---
+
+# ✨ What Recall Does
+
+### 🔎 Search by memory
+
+Search your browsing history using natural language.
+
+```text
+"that Spring Boot article I read a few days ago"
+```
+
+```text
+"React animation tutorial from yesterday morning"
+```
+
+```text
+"the Reddit discussion about psychological thrillers"
+```
+
+Recall understands the intent behind the query instead of requiring an exact match.
+
+---
+
+### 🧠 AI Memory Chat
+
+Don't just search.
+
+**Ask Recall.**
+
+```text
+What was the GitHub repository I looked at
+when I was researching CUDA memory?
+```
+
+Recall retrieves relevant memories and generates a grounded answer with clickable sources.
+
+Every answer is tied back to the memories it used.
+
+No evidence → no invented answer.
+
+---
+
+### 🕒 Timeline
+
+See what you explored over time.
+
+Your browsing history becomes a chronological memory stream instead of an endless list of URLs.
+
+---
+
+### 🧭 Research Journeys
+
+Recall can group related browsing activity into research sessions.
+
+For example:
+
+```text
+Google
+   ↓
+NVIDIA CUDA Documentation
+   ↓
+Stack Overflow
+   ↓
+GitHub Repository
+   ↓
+YouTube Tutorial
+```
+
+Instead of remembering five disconnected pages, you can remember the **journey**.
+
+---
+
+### 🏷️ Memory Topics
+
+Your browsing activity can be organized into meaningful topics.
+
+```text
+AI / ML
+Backend
+Java
+CUDA
+Research
+Projects
+Entertainment
+```
+
+So your history becomes something you can actually navigate.
+
+---
+
+### 🔐 Privacy Controls
+
+Your browsing history is extremely personal.
+
+Recall is designed around that reality.
+
+You control what gets remembered.
+
+* Explicit collection control
+* Master pause/resume
+* Excluded domains
+* Individual memory deletion
+* Delete memories by date
+* Delete memories by domain
+* Full JSON export
+* Account/memory wipe
+* User-isolated data access
+
+The browser extension is intentionally lightweight and does **not** use AI on the client.
+
+---
+
+# 🛡️ What Recall Records
+
+Recall currently focuses on browsing metadata required for memory retrieval:
+
+```text
+✓ Page URL
+✓ Page title
+✓ Visit timestamp
+✓ Domain
+✓ Browser source
+✓ Research session
+✓ Topic information
+```
+
+### Recall does NOT intentionally collect:
+
+```text
+✗ Passwords
+✗ Form values
+✗ Credit card information
+✗ Cookies
+✗ Authentication/session tokens
+✗ Incognito/private browsing activity
+```
+
+You can also configure domains that Recall should never remember.
+
+> **Your browser history belongs to you.**
 >
-> 🌐 **Interactive Diagram Viewer**: Open [`docs/architecture-diagrams.html`](file:///Users/mohit/Downloads/Recall/docs/architecture-diagrams.html) in your browser or explore them live in the web app under the **Architecture** tab at [http://localhost:5173](http://localhost:5173).
-> 
-> 📋 **Original Implementation Plan**: View the full design document artifact with all technical specs at [`implementation_plan.md`](file:///Users/mohit/.gemini/antigravity-ide/brain/14fdcee1-1c3a-4f44-b236-c5a4d98ce2fc/implementation_plan.md).
-
-Recall is a full-stack, privacy-first web memory layer. Users connect their browsers through ultra-lightweight extensions, and Recall silently indexes permitted browsing records to make them instantly searchable via a hybrid retrieval engine and a grounded conversational AI interface.
+> Recall should make it more useful — not less private.
 
 ---
 
-## 1. The Problem
+# ⚡ Built to Stay Out of Your Way
 
-People constantly discover valuable articles, GitHub repositories, videos, technical documentation, movies, and research papers online — but later forget where they found them.
+Recall isn't supposed to become another application constantly consuming your resources.
 
-Standard browser history is rigid: it requires exact keywords, URLs, or precise timestamps. Recall enables searching using **how humans actually remember**:
-- *"that github repo about cuda memory from last week"*
-- *"psychological thriller recommendation on reddit"*
-- *"react animation tutorial from yesterday morning"*
-- *"spring boot best practices article with leetcode problems"*
+The Chrome extension is deliberately lightweight.
+
+### Extension
+
+* Manifest V3
+* Event-based observation
+* No DOM scraping
+* No client-side AI
+* Local resilient queue
+* Event deduplication
+* Batched synchronization
+* Exponential retry
+* Bounded local storage
+* Pause/resume control
+
+The extension primarily observes navigation metadata, filters it, queues it locally, and synchronizes batches with the Recall API.
+
+### Current queue design
+
+```text
+Browser Event
+      ↓
+Privacy Filter
+      ↓
+Local Queue
+      ↓
+Batch Manager
+      ↓
+Recall API
+```
+
+If the network disappears, the queue can retain events and retry later.
 
 ---
 
-## 2. System Architecture
+# 🚀 Hybrid Retrieval
+
+Recall doesn't depend on a single search technique.
+
+It combines multiple signals to find the memory you're actually looking for.
+
+```text
+                User Query
+                    │
+                    ▼
+             Intent Parsing
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+     Keywords      Time       Domain
+        │           │           │
+        └───────────┼───────────┘
+                    ▼
+             Semantic Search
+                    │
+                    ▼
+             Candidate Pool
+                    │
+                    ▼
+        Ranking / Relevance Fusion
+                    │
+                    ▼
+             Best Memories
+```
+
+| Signal              | Purpose                                                  |
+| ------------------- | -------------------------------------------------------- |
+| Semantic similarity | Understand conceptual meaning                            |
+| Keyword relevance   | Match explicit terms                                     |
+| Temporal proximity  | Understand phrases like “last week”                      |
+| Recency             | Prefer relevant recent discoveries                       |
+| Session cohesion    | Connect pages from the same research journey             |
+| Domain metadata     | Understand sources such as GitHub, Reddit, YouTube, etc. |
+
+This allows queries such as:
+
+```text
+"that github repo about cuda memory from last week"
+```
+
+to be decomposed into useful retrieval signals rather than treated as one giant keyword string.
+
+---
+
+# 🤖 Grounded AI
+
+Recall's conversational layer uses retrieved browsing memories as its evidence.
+
+```text
+User Question
+      ↓
+Query Understanding
+      ↓
+Hybrid Retrieval
+      ↓
+Relevant Memories
+      ↓
+Context Builder
+      ↓
+LLM
+      ↓
+Answer + Sources
+```
+
+The goal is simple:
+
+> **The AI should remember what you actually visited, not make up what you might have visited.**
+
+Responses include source information such as:
+
+* Page title
+* Domain
+* Visit date
+* URL
+
+If there isn't enough evidence, Recall should say so.
+
+---
+
+# 🏗️ Architecture
 
 ```mermaid
 graph TB
-    subgraph "Browser Layer"
-        CE["Chrome Extension (MV3)"]
-        FE["Firefox / Safari Extension"]
-    end
 
-    subgraph "Recall Web App"
-        UI["React + TypeScript + Vite<br/>(Dark Glassmorphism UI)"]
-    end
+    B["Chrome Browser"]
+    E["Manifest V3 Extension"]
 
-    subgraph "API Layer"
-        API["FastAPI — Python"]
-        AUTH["Auth & JWT Middleware"]
-        RL["Rate Limiter"]
-    end
+    W["Recall Web App"]
+    A["FastAPI API"]
 
-    subgraph "Data Layer"
-        PG[("PostgreSQL 16 + pgvector")]
-        RD[("Redis Cache & Queue")]
-    end
+    P[("PostgreSQL 16")]
+    V[("pgvector")]
+    R[("Redis")]
 
-    subgraph "Background Workers"
-        EMB["Embedding Worker"]
-        TOP["Topic Classifier"]
-        SES["Session Detector"]
-        IDX["Indexer"]
-    end
+    BG["Background Workers"]
 
-    subgraph "Retrieval Engine"
-        FTS["Full-Text Search (tsvector)"]
-        VS["Vector Search (pgvector)"]
-        MF["Metadata Filter (domain, browser)"]
-        TF["Time Filter (temporal parser)"]
-        RK["Reciprocal Rank Fusion (RRF)"]
-    end
+    HS["Hybrid Search"]
+    RAG["Grounded RAG"]
 
-    subgraph "AI Layer"
-        LLM["LLM Provider (Grounded Synthesis)"]
-        EMBP["Embedding Provider (text-embedding-3-small)"]
-    end
+    B --> E
+    E -->|"Batched Events"| A
 
-    CE -->|"Batch Events (JSON)"| API
-    FE -->|"Batch Events (JSON)"| API
-    UI -->|"REST & RAG Queries"| API
-    API --> AUTH
-    API --> RL
-    API --> PG
-    API --> RD
-    RD --> EMB
-    RD --> TOP
-    RD --> SES
-    RD --> IDX
-    EMB --> EMBP
-    EMB --> PG
-    TOP --> PG
-    SES --> PG
-    IDX --> PG
-    API --> FTS
-    API --> VS
-    API --> MF
-    API --> TF
-    FTS --> PG
-    VS --> PG
-    MF --> PG
-    TF --> PG
-    RK --> LLM
-    API --> LLM
+    W -->|"Search / Chat"| A
+
+    A --> P
+    A --> V
+    A --> R
+
+    R --> BG
+    BG --> V
+
+    A --> HS
+    HS --> P
+    HS --> V
+
+    HS --> RAG
 ```
+
+### Core stack
+
+**Frontend**
+
+* React
+* TypeScript
+* Vite
+* Custom responsive UI
+
+**Backend**
+
+* Python
+* FastAPI
+* Async SQLAlchemy
+* JWT authentication
+
+**Data**
+
+* PostgreSQL 16
+* pgvector
+* Redis
+
+**Browser**
+
+* Chrome Manifest V3
+* Lightweight service worker
+* Local persistent queue
+
+**AI**
+
+* Embeddings
+* Vector retrieval
+* Grounded conversational RAG
 
 ---
 
-## 3. Database Schema
+# 📦 Repository Structure
 
-```mermaid
-erDiagram
-    users ||--o{ browser_connections : has
-    users ||--o{ browsing_events : generates
-    users ||--o{ conversations : creates
-    users ||--o{ excluded_domains : configures
-    users ||--o{ user_preferences : has
-    users ||--o{ memory_deletions : requests
-
-    browser_connections ||--o{ browsing_events : sources
-
-    pages ||--o{ browsing_events : referenced_by
-    pages ||--o{ page_embeddings : has
-    pages }o--|| domains : belongs_to
-
-    browsing_sessions ||--o{ browsing_events : contains
-
-    memory_topics ||--o{ page_topics : categorizes
-    pages ||--o{ page_topics : tagged_with
-
-    conversations ||--o{ conversation_messages : contains
-
-    search_queries ||--o{ browsing_events : triggers
-
-    users {
-        uuid id PK
-        string email
-        string password_hash
-        string display_name
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    browser_connections {
-        uuid id PK
-        uuid user_id FK
-        string browser_type
-        string connection_name
-        string auth_token_hash
-        boolean is_active
-        boolean is_paused
-        timestamp last_synced_at
-        timestamp created_at
-    }
-
-    pages {
-        uuid id PK
-        string url
-        string title
-        uuid domain_id FK
-        text content_text
-        jsonb metadata
-        timestamp first_seen_at
-        timestamp last_seen_at
-        timestamp created_at
-    }
-
-    domains {
-        uuid id PK
-        string domain_name
-        string favicon_url
-        timestamp created_at
-    }
-
-    browsing_events {
-        uuid id PK
-        uuid user_id FK
-        uuid browser_connection_id FK
-        uuid page_id FK
-        uuid session_id FK
-        timestamp visited_at
-        string source_browser
-        integer duration_seconds
-        jsonb metadata
-        timestamp created_at
-    }
-
-    browsing_sessions {
-        uuid id PK
-        uuid user_id FK
-        string inferred_topic
-        timestamp started_at
-        timestamp ended_at
-        timestamp created_at
-    }
-
-    search_queries {
-        uuid id PK
-        uuid user_id FK
-        uuid browsing_event_id FK
-        string query_text
-        string search_engine
-        timestamp searched_at
-    }
-
-    page_embeddings {
-        uuid id PK
-        uuid page_id FK
-        vector embedding
-        string model_name
-        timestamp created_at
-    }
-
-    memory_topics {
-        uuid id PK
-        uuid user_id FK
-        string name
-        string slug
-        string color
-        boolean is_auto_generated
-        timestamp created_at
-    }
-
-    page_topics {
-        uuid page_id FK
-        uuid topic_id FK
-        float confidence
-    }
-
-    excluded_domains {
-        uuid id PK
-        uuid user_id FK
-        string domain_name
-        timestamp created_at
-    }
-
-    user_preferences {
-        uuid id PK
-        uuid user_id FK
-        string key
-        text value
-        timestamp updated_at
-    }
-
-    conversations {
-        uuid id PK
-        uuid user_id FK
-        string title
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    conversation_messages {
-        uuid id PK
-        uuid conversation_id FK
-        string role
-        text content
-        jsonb sources
-        timestamp created_at
-    }
-
-    memory_deletions {
-        uuid id PK
-        uuid user_id FK
-        string deletion_type
-        jsonb deletion_criteria
-        timestamp deleted_at
-    }
-```
-
-### Key Performance Indexes
-
-| Table | Index | Type | Purpose |
-|-------|-------|------|---------|
-| `browsing_events` | `(user_id, visited_at DESC)` | B-tree | Instant chronological timeline queries |
-| `browsing_events` | `(user_id, session_id)` | B-tree | Fast research session grouping |
-| `pages` | `url` | B-tree (unique) | URL deduplication across all users |
-| `pages` | GIN on `to_tsvector(title \|\| content_text)` | Full-text | Sub-millisecond keyword lookup |
-| `page_embeddings` | `embedding` | IVFFlat / HNSW | Cosine distance vector search (1536 dims) |
-| `domains` | `domain_name` | B-tree (unique) | Domain normalization and favicon lookups |
-| `excluded_domains` | `(user_id, domain_name)` | B-tree (unique) | Fast privacy exclusion check |
-
----
-
-## 4. Browser Extension Architecture & Data Flow
-
-```mermaid
-graph LR
-    subgraph "Chrome Extension — Manifest V3"
-        SW["Service Worker<br/>(Lightweight Listener)"]
-        POP["Popup UI<br/>(Status, Pairing, Pause)"]
-    end
-
-    subgraph "Core Extension Logic"
-        OBS["Event Observer<br/>(Debounced tabs.onUpdated)"]
-        PRIV["Privacy Filter<br/>(Excluded domains & credentials check)"]
-        Q["Local Queue<br/>(chrome.storage.local, max 500)"]
-        BAT["Batch Manager<br/>(Every 30s or 20 events)"]
-        AUTH2["Auth Manager<br/>(Token pairing)"]
-    end
-
-    SW --> OBS
-    OBS --> PRIV
-    PRIV --> Q
-    Q --> BAT
-    BAT -->|"POST /api/events/batch"| API2["Recall API"]
-    POP --> AUTH2
-    AUTH2 --> API2
-    POP --> SW
-```
-
-### Extension Data Pipeline
-
-```
-Tab navigation event fires
-        ↓
-Service Worker captures: URL, title, timestamp
-        ↓
-Privacy Filter checks excluded domains & sensitive patterns
-        ↓
-If allowed → Queue in chrome.storage.local (deduplicated within 30s)
-        ↓
-Batch Manager triggers every 30s OR when queue reaches 20 events
-        ↓
-POST /api/events/batch
-        ↓
-Clear successfully sent events from local queue
-        ↓
-If offline → Keep in persistent queue, retry with exponential backoff
-```
-
----
-
-## 5. Retrieval Engine & Conversational AI (RAG)
-
-```mermaid
-graph TB
-    UQ["User Query<br/>'that github repo about cuda memory from last week'"] --> QP["Query Intent Parser"]
-    
-    QP -->|"Extracts: 'last week'"| TF2["Time Filter (Sep 15 - Sep 22)"]
-    QP -->|"Extracts: 'cuda memory'"| VS2["Vector Search (pgvector)"]
-    QP -->|"Extracts: 'cuda', 'memory'"| FTS2["Full-Text Keyword Search"]
-    QP -->|"Extracts: 'github.com'"| MF2["Domain & Metadata Filter"]
-
-    TF2 --> CAND["Candidate Pool"]
-    VS2 --> CAND
-    FTS2 --> CAND
-    MF2 --> CAND
-
-    CAND --> RR["Reciprocal Rank Fusion + Reranker"]
-    RR --> TOP2["Top K Ranked Results (with Match Reasons)"]
-    TOP2 --> CTX["Context Builder & Citation Formatter"]
-    CTX --> LLM2["LLM Synthesis (Strict Grounding Prompt)"]
-    LLM2 --> RESP["Conversational Response + Clickable Citations"]
-```
-
-### Hybrid Ranking Signal Weights
-
-| Signal | Weight | Method | Notes |
-|--------|--------|--------|-------|
-| **Semantic Similarity** | `0.35` | pgvector cosine distance | Matches conceptual meaning |
-| **Keyword Relevance** | `0.25` | PostgreSQL `ts_rank` | Matches exact keywords in title/content |
-| **Temporal Proximity** | `0.20` | Gaussian time window | Boosts pages visited near target timeframe |
-| **Recency Decay** | `0.10` | Exponential decay | Subtle preference for more recent discoveries |
-| **Session Cohesion** | `0.10` | Same-session clustering | Boosts related pages in the same research journey |
-
----
-
-## 6. Privacy Model & Zero-Trust Architecture
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        USER PRIVACY CONTROLS                           │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ● Explicit opt-in before any browsing metadata is collected           │
-│  ● Master Pause / Resume toggle across all connected extensions        │
-│  ● Custom Excluded Domains list (with instant removal)                 │
-│  ● Delete individual pages from memory                                 │
-│  ● Delete browsing records by date or domain                           │
-│  ● One-click uncompressed JSON archive export                          │
-│  ● Instant account and memory wipe                                     │
-│                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│                         WHAT IS RECORDED                               │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ✓ Page URL                                                            │
-│  ✓ Page title                                                          │
-│  ✓ Visit timestamp                                                     │
-│  ✓ Domain name & favicon                                               │
-│  ✓ Browser source (Chrome, Firefox, Safari)                            │
-│  ✓ Inferred research session & topic tag                               │
-│                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│                     NEVER READ OR RECORDED                             │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  ✗ Passwords & Logins — NEVER                                          │
-│  ✗ Form inputs & credit cards — NEVER                                  │
-│  ✗ Cookies & session tokens — NEVER                                    │
-│  ✗ Incognito / Private browsing windows — NEVER                        │
-│                                                                        │
-├────────────────────────────────────────────────────────────────────────┤
-│                   DEFAULT EXCLUDED PRESETS                             │
-├────────────────────────────────────────────────────────────────────────┤
-│                                                                        │
-│  • Banking: chase.com, bankofamerica.com, wellsfargo.com, etc.         │
-│  • Email: mail.google.com, outlook.live.com                            │
-│  • Healthcare portals: mychart.org, epic.com                           │
-│  • Password managers: 1password.com, bitwarden.com, lastpass.com      │
-│                                                                        │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 7. Performance Architecture Guarantees
-
-### Extension Performance
-- **Zero-AI on client**: Runs only lightweight metadata observation and JSON queueing.
-- **Debounced tracking**: Rapid sub-navigations (< 2s on same domain) are ignored.
-- **Batch transmission**: Sends events every 30s OR when queue reaches 20 items.
-- **Local storage cap**: Queue capped at 500 events to guarantee zero RAM bloat.
-
-### API & Database Performance
-- **Async concurrency**: FastAPI async handlers with `asyncpg` connection pool.
-- **Sub-15ms search**: Hybrid search queries execute in ~11ms via PostgreSQL indexes.
-- **Background processing**: Embeddings, session detection, and topic classification run asynchronously.
-
-### Frontend Experience
-- **Fluid dark glassmorphism**: Tailored CSS custom properties with responsive layout.
-- **Micro-animations**: Smooth hover transitions, status indicators, and collapsible journey steps.
-- **Keyboard navigation**: Global search shortcut (`⌘K` / `Ctrl+K`) and keyboard submission.
-
----
-
-## 8. Monorepo Structure
-
-```
+```text
 Recall/
+│
 ├── apps/
-│   ├── api/                    # FastAPI service (Python 3.13)
-│   │   ├── app/
-│   │   │   ├── models/         # SQLAlchemy ORM models (Page, Event, Session, Topic)
-│   │   │   ├── routers/        # API endpoints (auth, search, chat, memory, browsers, privacy)
-│   │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   │   ├── services/       # Hybrid search, chat RAG, auth, event ingestion
-│   │   │   ├── database.py     # Asyncpg connection pooling & engine
-│   │   │   ├── main.py         # App factory & CORS configuration
-│   │   │   └── seed.py         # Preloaded browsing dataset
-│   │   └── requirements.txt
-│   │
-│   ├── web/                    # React 18 + TypeScript + Vite frontend
-│   │   ├── src/
-│   │   │   ├── components/     # Design system, sidebar, views (Search, Chat, Timeline, etc.)
-│   │   │   ├── lib/            # Typed API client and data models
-│   │   │   ├── styles/         # CSS tokens, glassmorphism, responsive styles
-│   │   │   └── App.tsx         # Root app state and tab navigation
-│   │   ├── package.json
-│   │   └── vite.config.ts
-│   │
-│   └── extension-chrome/       # Chrome Manifest V3 Browser Extension
-│       ├── src/
-│       │   ├── service-worker.ts # Lightweight tab observer & batch scheduler
-│       │   ├── lib/            # Queue manager, batch sender, privacy filter
-│       │   └── popup/          # Extension popup UI (status, pairing, pause toggle)
-│       ├── manifest.json
-│       └── vite.config.ts      # Builds ready-to-load bundle into dist/
+│   ├── api/
+│   ├── web/
+│   └── extension-chrome/
 │
 ├── packages/
-│   └── shared-types/           # Shared TypeScript definitions
-├── docker-compose.yml          # Container orchestration (PostgreSQL + Redis)
-├── .env.example                # Environment variable blueprint
+│   └── shared-types/
+│
+├── docker-compose.yml
+├── .env.example
 └── README.md
 ```
 
 ---
 
-## 9. Getting Started
+# 🔬 Performance
 
-### 1. Prerequisites
-- **Node.js**: `v18+` (tested on `v26`)
-- **Python**: `3.11+` (tested on `3.13`)
-- **PostgreSQL**: `v16+` with `pgvector`
-- **Redis**: `v7+`
+Recall is designed around asynchronous processing and bounded workloads.
 
-### 2. Database Setup
-```bash
-# Start PostgreSQL and Redis
-brew services start postgresql@16
-brew services start redis
+### Browser extension
 
-# Create database and configure user
-createdb recall
-psql -d recall -c "CREATE EXTENSION IF NOT EXISTS vector;"
-psql -d recall -c "CREATE USER recall WITH PASSWORD 'recall_dev_password'; GRANT ALL PRIVILEGES ON DATABASE recall TO recall; GRANT ALL ON SCHEMA public TO recall;"
+```text
+Zero-AI client
+      ↓
+Event observation
+      ↓
+Deduplication
+      ↓
+Local queue
+      ↓
+Batch upload
 ```
 
-### 3. Backend Setup
+### Backend
+
+* Async FastAPI handlers
+* PostgreSQL connection pooling
+* Redis-backed background processing
+* Indexed retrieval
+* Batch event ingestion
+* Asynchronous embeddings
+* Paginated memory queries
+
+### Current search benchmark
+
+On the development dataset, the hybrid search path has been measured at approximately:
+
+> **~11 ms**
+
+for a tested CUDA-memory query.
+
+This is a development measurement, not a universal production latency guarantee.
+
+---
+
+# 🧪 Verification
+
+The current implementation has been tested across the primary Recall flow.
+
+### API
+
+* Search endpoint verified
+* Conversational RAG verified
+* Grounded citations verified
+
+### Frontend
+
+* Production TypeScript build
+* Browser interaction testing
+* Landing page
+* Demo login
+* Natural-language memory search
+* AI memory chat
+
+### Extension
+
+* Manifest V3 build
+* Local queue
+* Synchronization
+* Privacy filtering
+* Pairing flow
+* Pause control
+
+---
+
+# 🛠️ Run Recall Locally
+
+## Requirements
+
+* Node.js 18+
+* Python 3.11+
+* PostgreSQL 16+
+* pgvector
+* Redis 7+
+
+## 1. Start PostgreSQL and Redis
+
+```bash
+brew services start postgresql@16
+brew services start redis
+```
+
+Create the database:
+
+```bash
+createdb recall
+```
+
+Enable pgvector:
+
+```bash
+psql -d recall -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+## 2. Start the API
+
 ```bash
 cd apps/api
 
-# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Seed realistic multi-topic browsing dataset
 python -m app.seed
 
-# Start the FastAPI server
 uvicorn app.main:app --port 8000 --host 127.0.0.1 --reload
 ```
-The API will be available at `http://127.0.0.1:8000` (interactive docs at `http://127.0.0.1:8000/docs`).
 
-### 4. Web Application Setup
+API:
+
+```text
+http://127.0.0.1:8000
+```
+
+API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## 3. Start the Web App
+
 ```bash
 cd apps/web
 
-# Install dependencies
 npm install
-
-# Start Vite dev server
 npm run dev -- --port 5173
 ```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-> **Preloaded Demo Login**:
-> - Email: `mohit@recall.dev`
-> - Password: `password123`
-> *(Or click **"Explore Live App"** on the landing page for instant one-click login).*
+Then open:
 
-### 5. Installing the Browser Extension
-1. Build the extension bundle:
-   ```bash
-   cd apps/extension-chrome
-   npm install
-   npm run build
-   ```
-2. Open `chrome://extensions` in Google Chrome or Brave.
-3. Enable **Developer mode** in the top-right corner.
-4. Click **Load unpacked** and select the folder:
-   ```
-   Recall/apps/extension-chrome/dist
-   ```
-5. Click the Recall toolbar icon to monitor sync status, pause collection, or pair with your account token.
+```text
+http://localhost:5173
+```
 
 ---
 
-## 10. API Reference
+# 🌐 Install the Chrome Extension
+
+Build it:
+
+```bash
+cd apps/extension-chrome
+
+npm install
+npm run build
+```
+
+Then:
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Select **Load unpacked**
+4. Choose:
+
+```text
+Recall/apps/extension-chrome/dist
+```
+
+5. Open the Recall extension
+6. Pair it with your Recall account
+7. Start remembering the web
+
+---
+
+# 🧩 API
 
 ### Authentication
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/auth/register` | Create a new account |
-| `POST` | `/api/auth/login` | Log in and receive JWT access + refresh tokens |
-| `POST` | `/api/auth/refresh` | Refresh access token |
-| `GET` | `/api/me` | Current user profile and memory stats |
 
-### Search & Conversational AI
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/search` | Natural language hybrid search with match reasons |
-| `POST` | `/api/chat` | Conversational RAG with grounded citations |
-| `GET` | `/api/conversations` | List conversation threads |
-| `GET` | `/api/conversations/{id}` | Get messages and citations in a thread |
-| `DELETE` | `/api/conversations/{id}` | Delete a conversation thread |
+```text
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/refresh
+GET  /api/me
+```
 
-### Timeline, Topics & Sessions
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/memory` | Paginated memories list |
-| `DELETE` | `/api/memory/{id}` | Delete single memory |
-| `DELETE` | `/api/memory/date/{date}` | Delete all memories for a given date |
-| `GET` | `/api/timeline` | Chronological stream grouped by 30-min sessions |
-| `GET` | `/api/sessions` | Multi-step research journeys |
-| `GET` | `/api/topics` | Memory topics with page counts |
-| `GET` | `/api/topics/{slug}/memories` | Memories tagged under a topic |
+### Memory Search
 
-### Extension Ingestion & Privacy
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/events/batch` | Ingest batch of browsing events from extension |
-| `GET` | `/api/browsers` | List connected browser extensions |
-| `POST` | `/api/browsers/connect` | Register new extension and generate pairing token |
-| `PATCH` | `/api/browsers/{id}` | Pause or resume sync for a browser |
-| `GET` | `/api/privacy` | Privacy settings and excluded domains |
-| `PATCH` | `/api/privacy` | Master pause/resume switch |
-| `POST` | `/api/privacy/excluded-domains` | Add domain to exclusion list |
-| `DELETE` | `/api/privacy/excluded-domains/{id}` | Remove domain from exclusion list |
-| `POST` | `/api/export` | Export all user data as JSON |
+```text
+POST /api/search
+POST /api/chat
+```
+
+### Conversations
+
+```text
+GET    /api/conversations
+GET    /api/conversations/{id}
+DELETE /api/conversations/{id}
+```
+
+### Timeline & Research
+
+```text
+GET /api/memory
+GET /api/timeline
+GET /api/sessions
+GET /api/topics
+```
+
+### Privacy
+
+```text
+GET    /api/privacy
+PATCH  /api/privacy
+POST   /api/privacy/excluded-domains
+DELETE /api/privacy/excluded-domains/{id}
+POST   /api/export
+```
+
+### Browser Integration
+
+```text
+GET   /api/browsers
+POST  /api/browsers/connect
+PATCH /api/browsers/{id}
+POST  /api/events/batch
+```
 
 ---
 
-## License
+# 🤝 Contributing
 
-MIT © [Recall](https://github.com)
+Recall is an open-source project.
+
+If the idea resonates with you, there are many ways to help:
+
+* ⭐ Star the repository
+* 🐛 Report bugs
+* 💡 Suggest features
+* 🔧 Submit pull requests
+* 🧪 Improve retrieval evaluation
+* 🔐 Audit privacy/security
+* ⚡ Improve performance
+* 📚 Improve documentation
+
+If you're interested in **AI, RAG, browser extensions, search engines, privacy, or developer tools**, this project is especially open to contributions in those areas.
+
+---
+
+# ⭐ If Recall Sounds Useful
+
+If you've ever thought:
+
+> *“I know I saw this somewhere… I just can't remember where.”*
+
+then Recall was built for you.
+
+**Star the repository if you'd like to follow the project.**
+
+---
+
+<p align="center">
+
+### Recall
+
+**Never lose a link again.**
+
+*Remember the web. Find it again.*
+
+</p>
