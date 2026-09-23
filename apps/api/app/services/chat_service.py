@@ -17,6 +17,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from fastapi import HTTPException, status
 from app.config import settings
 from app.models.models import Conversation, ConversationMessage, User
 from app.schemas.schemas import (
@@ -45,8 +46,12 @@ async def get_or_create_conversation(
         )
         res = await db.execute(stmt)
         conv = res.scalar_one_or_none()
-        if conv:
-            return conv
+        if not conv:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found or access denied",
+            )
+        return conv
 
     # Create new conversation
     title = first_query[:60] + ("..." if len(first_query) > 60 else "")

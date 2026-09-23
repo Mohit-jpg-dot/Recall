@@ -1,10 +1,4 @@
-const browserAPI = typeof globalThis.browser !== "undefined" ? globalThis.browser : globalThis.chrome;
-function detectBrowserType() {
-  const ua = (typeof navigator !== "undefined" ? navigator.userAgent : "").toLowerCase();
-  if (ua.includes("firefox")) return "firefox";
-  if (ua.includes("safari") && !ua.includes("chrome")) return "safari";
-  return "chrome";
-}
+import { b as browserAPI, d as detectBrowserType } from "./chunks/browser-api.js";
 function shouldExclude(url, domain, excludedDomains) {
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return true;

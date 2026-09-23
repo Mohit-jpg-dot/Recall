@@ -1,14 +1,35 @@
 /**
  * Recall Extension — Popup Script
  *
- * Handles popup UI interactions.
- * All state reads from chrome.storage, never global vars.
+ * Handles popup UI interactions:
+ * - Pairing Token authentication (Primary SaaS flow)
+ * - Direct credential authentication (Fallback)
+ * - Multi-browser compatibility (Chrome, Firefox, Safari)
+ * - Sync trigger, pause/resume, and disconnect
+ *
+ * All state reads from extension storage, never global vars.
  */
+
+import { detectBrowserType } from '../lib/browser-api';
 
 // ── DOM Elements ────────────────────────────────
 
 const loginView = document.getElementById('login-view') as HTMLDivElement;
 const connectedView = document.getElementById('connected-view') as HTMLDivElement;
+
+// Mode tabs
+const tabTokenBtn = document.getElementById('tab-token-btn') as HTMLButtonElement;
+const tabLoginBtn = document.getElementById('tab-login-btn') as HTMLButtonElement;
+
+// Token Form
+const tokenForm = document.getElementById('token-form') as HTMLFormElement;
+const tokenApiUrlInput = document.getElementById('token-api-url') as HTMLInputElement;
+const pairingTokenInput = document.getElementById('pairing-token') as HTMLInputElement;
+const connectionNameInput = document.getElementById('connection-name') as HTMLInputElement;
+const tokenBtn = document.getElementById('token-btn') as HTMLButtonElement;
+const tokenError = document.getElementById('token-error') as HTMLParagraphElement;
+
+// Login Form
 const loginForm = document.getElementById('login-form') as HTMLFormElement;
 const loginError = document.getElementById('login-error') as HTMLParagraphElement;
 const loginBtn = document.getElementById('login-btn') as HTMLButtonElement;
@@ -16,6 +37,8 @@ const apiUrlInput = document.getElementById('api-url') as HTMLInputElement;
 const emailInput = document.getElementById('email') as HTMLInputElement;
 const passwordInput = document.getElementById('password') as HTMLInputElement;
 
+// Connected View
+const browserTypeLabel = document.querySelector('.status-card .status-label') as HTMLSpanElement;
 const connectionStatus = document.getElementById('connection-status') as HTMLSpanElement;
 const lastSynced = document.getElementById('last-synced') as HTMLSpanElement;
 const pendingCount = document.getElementById('pending-count') as HTMLSpanElement;
@@ -27,15 +50,47 @@ const pauseBtn = document.getElementById('pause-btn') as HTMLButtonElement;
 const openRecall = document.getElementById('open-recall') as HTMLAnchorElement;
 const disconnectBtn = document.getElementById('disconnect-btn') as HTMLButtonElement;
 
+const detectedBrowser = detectBrowserType();
+
 // ── Initialize ──────────────────────────────────
 
 async function init(): Promise<void> {
+  const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
+  if (connectionNameInput) {
+    connectionNameInput.placeholder = `${browserName} Browser`;
+  }
+  if (browserTypeLabel) {
+    browserTypeLabel.textContent = browserName;
+  }
+
   const response = await sendMessage({ type: 'GET_STATUS' });
   if (response?.auth?.is_connected) {
     showConnectedView(response.auth, response.sync);
   } else {
     showLoginView();
   }
+}
+
+// ── Tab Switching ───────────────────────────────
+
+if (tabTokenBtn && tabLoginBtn) {
+  tabTokenBtn.addEventListener('click', () => {
+    tabTokenBtn.classList.add('active');
+    tabLoginBtn.classList.remove('active');
+    tokenForm.hidden = false;
+    loginForm.hidden = true;
+    tokenError.hidden = true;
+    loginError.hidden = true;
+  });
+
+  tabLoginBtn.addEventListener('click', () => {
+    tabLoginBtn.classList.add('active');
+    tabTokenBtn.classList.remove('active');
+    loginForm.hidden = false;
+    tokenForm.hidden = true;
+    tokenError.hidden = true;
+    loginError.hidden = true;
+  });
 }
 
 // ── Views ───────────────────────────────────────
@@ -46,11 +101,17 @@ function showLoginView(): void {
 }
 
 function showConnectedView(
-  auth: { is_paused: boolean },
+  auth: { is_paused: boolean; api_url?: string },
   sync: { last_synced_at: number | null; pending_count: number; last_error: string | null }
 ): void {
   loginView.hidden = true;
   connectedView.hidden = false;
+
+  // Browser label
+  const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
+  if (browserTypeLabel) {
+    browserTypeLabel.textContent = browserName;
+  }
 
   // Update status
   const dot = connectionStatus.querySelector('.status-dot') as HTMLSpanElement;
@@ -84,96 +145,179 @@ function showConnectedView(
   }
 
   // Open Recall link
-  openRecall.href = 'http://localhost:5173/app';
+  const webUrl = (auth.api_url && !auth.api_url.includes('localhost:8000'))
+    ? auth.api_url.replace(/api\./, '').replace(/\/$/, '')
+    : 'http://localhost:5173';
+  openRecall.href = `${webUrl}/app`;
 }
 
-// ── Event Handlers ──────────────────────────────
+// ── Token Pairing Handler (Primary) ─────────────
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  loginError.hidden = true;
-  loginBtn.textContent = 'Connecting...';
-  loginBtn.disabled = true;
+if (tokenForm) {
+  tokenForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    tokenError.hidden = true;
+    tokenBtn.textContent = 'Pairing...';
+    tokenBtn.disabled = true;
 
-  const apiUrl = apiUrlInput.value.replace(/\/$/, '');
-  const email = emailInput.value;
-  const password = passwordInput.value;
+    const apiUrl = tokenApiUrlInput.value.replace(/\/$/, '');
+    const pairingToken = pairingTokenInput.value.trim();
+    const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
+    const connectionName = connectionNameInput.value.trim() || `${browserName} Browser`;
 
-  try {
-    // Step 1: Login to Recall API
-    const loginResponse = await fetch(`${apiUrl}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!loginResponse.ok) {
-      const error = await loginResponse.json();
-      throw new Error(error.detail || 'Login failed');
-    }
-
-    const loginData = await loginResponse.json();
-
-    // Step 2: Register this browser connection
-    const connectResponse = await fetch(`${apiUrl}/api/browsers/connect`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${loginData.access_token}`,
-      },
-      body: JSON.stringify({
-        browser_type: 'chrome',
-        connection_name: 'Chrome Browser',
-      }),
-    });
-
-    if (!connectResponse.ok) {
-      throw new Error('Failed to register browser connection');
-    }
-
-    const connectionData = await connectResponse.json();
-
-    // Step 3: Save auth to service worker
-    await sendMessage({
-      type: 'LOGIN',
-      payload: {
-        access_token: loginData.access_token,
-        refresh_token: loginData.refresh_token,
-        connection_id: connectionData.id,
-        api_url: apiUrl,
-      },
-    });
-
-    // Step 4: Fetch excluded domains
-    const privacyResponse = await fetch(`${apiUrl}/api/privacy`, {
-      headers: { Authorization: `Bearer ${loginData.access_token}` },
-    });
-    if (privacyResponse.ok) {
-      const privacy = await privacyResponse.json();
-      await sendMessage({
-        type: 'UPDATE_EXCLUDED_DOMAINS',
-        payload: { domains: privacy.excluded_domains.map((d: { domain_name: string }) => d.domain_name) },
+    try {
+      const response = await fetch(`${apiUrl}/api/browsers/pair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pairing_token: pairingToken,
+          browser_type: detectedBrowser,
+          connection_name: connectionName,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Pairing failed (${response.status})`);
+      }
+
+      const pairData = await response.json();
+
+      // Save auth in background service worker
+      await sendMessage({
+        type: 'LOGIN',
+        payload: {
+          access_token: pairData.access_token,
+          refresh_token: pairData.refresh_token,
+          connection_id: pairData.connection_id,
+          api_url: apiUrl,
+        },
+      });
+
+      // Fetch excluded domains
+      try {
+        const privacyResponse = await fetch(`${apiUrl}/api/privacy`, {
+          headers: { Authorization: `Bearer ${pairData.access_token}` },
+        });
+        if (privacyResponse.ok) {
+          const privacy = await privacyResponse.json();
+          await sendMessage({
+            type: 'UPDATE_EXCLUDED_DOMAINS',
+            payload: { domains: privacy.excluded_domains.map((d: { domain_name: string }) => d.domain_name) },
+          });
+        }
+      } catch (e) {
+        console.warn('Could not sync initial privacy settings:', e);
+      }
+
+      // Transition to connected view
+      const status = await sendMessage({ type: 'GET_STATUS' });
+      showConnectedView(status.auth, status.sync);
+    } catch (error) {
+      tokenError.textContent = error instanceof Error ? error.message : 'Pairing failed';
+      tokenError.hidden = false;
+    } finally {
+      tokenBtn.textContent = 'Pair Extension';
+      tokenBtn.disabled = false;
     }
+  });
+}
 
-    // Show connected view
-    const status = await sendMessage({ type: 'GET_STATUS' });
-    showConnectedView(status.auth, status.sync);
+// ── Password Login Handler (Secondary) ──────────
 
-  } catch (error) {
-    loginError.textContent = error instanceof Error ? error.message : 'Connection failed';
-    loginError.hidden = false;
-  } finally {
-    loginBtn.textContent = 'Connect Browser';
-    loginBtn.disabled = false;
-  }
-});
+if (loginForm) {
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.hidden = true;
+    loginBtn.textContent = 'Connecting...';
+    loginBtn.disabled = true;
+
+    const apiUrl = apiUrlInput.value.replace(/\/$/, '');
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
+
+    try {
+      // Step 1: Login to Recall API
+      const loginResponse = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!loginResponse.ok) {
+        const error = await loginResponse.json().catch(() => ({}));
+        throw new Error(error.detail || 'Login failed');
+      }
+
+      const loginData = await loginResponse.json();
+
+      // Step 2: Register this browser connection
+      const connectResponse = await fetch(`${apiUrl}/api/browsers/connect`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${loginData.access_token}`,
+        },
+        body: JSON.stringify({
+          browser_type: detectedBrowser,
+          connection_name: `${browserName} Browser`,
+        }),
+      });
+
+      if (!connectResponse.ok) {
+        throw new Error('Failed to register browser connection');
+      }
+
+      const connectionData = await connectResponse.json();
+
+      // Step 3: Save auth to service worker
+      await sendMessage({
+        type: 'LOGIN',
+        payload: {
+          access_token: loginData.access_token,
+          refresh_token: loginData.refresh_token,
+          connection_id: connectionData.id,
+          api_url: apiUrl,
+        },
+      });
+
+      // Step 4: Fetch excluded domains
+      try {
+        const privacyResponse = await fetch(`${apiUrl}/api/privacy`, {
+          headers: { Authorization: `Bearer ${loginData.access_token}` },
+        });
+        if (privacyResponse.ok) {
+          const privacy = await privacyResponse.json();
+          await sendMessage({
+            type: 'UPDATE_EXCLUDED_DOMAINS',
+            payload: { domains: privacy.excluded_domains.map((d: { domain_name: string }) => d.domain_name) },
+          });
+        }
+      } catch (e) {
+        console.warn('Could not sync privacy settings:', e);
+      }
+
+      // Show connected view
+      const status = await sendMessage({ type: 'GET_STATUS' });
+      showConnectedView(status.auth, status.sync);
+    } catch (error) {
+      loginError.textContent = error instanceof Error ? error.message : 'Connection failed';
+      loginError.hidden = false;
+    } finally {
+      loginBtn.textContent = 'Connect Browser';
+      loginBtn.disabled = false;
+    }
+  });
+}
+
+// ── Control Actions ─────────────────────────────
 
 syncBtn.addEventListener('click', async () => {
   syncBtn.textContent = 'Syncing...';
   syncBtn.disabled = true;
 
-  const response = await sendMessage({ type: 'FORCE_SYNC' });
+  await sendMessage({ type: 'FORCE_SYNC' });
 
   // Refresh status
   const status = await sendMessage({ type: 'GET_STATUS' });
@@ -184,7 +328,7 @@ syncBtn.addEventListener('click', async () => {
 });
 
 pauseBtn.addEventListener('click', async () => {
-  const response = await sendMessage({ type: 'TOGGLE_PAUSE' });
+  await sendMessage({ type: 'TOGGLE_PAUSE' });
   const status = await sendMessage({ type: 'GET_STATUS' });
   showConnectedView(status.auth, status.sync);
 });
@@ -203,7 +347,7 @@ openRecall.addEventListener('click', (e) => {
 
 // ── Helpers ─────────────────────────────────────
 
-function sendMessage(message: Record<string, unknown>): Promise<Record<string, unknown>> {
+function sendMessage(message: Record<string, unknown>): Promise<Record<string, any>> {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage(message, (response) => {
       resolve(response || {});
@@ -219,5 +363,5 @@ function formatTimeAgo(timestamp: number): string {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-// ── Init ────────────────────────────────────────
+// ── Run Init ────────────────────────────────────
 init();

@@ -1,0 +1,88 @@
+version: "3.9"
+
+services:
+  # ── PostgreSQL with pgvector ─────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: recall-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-recall}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-recall}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-recall}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: recall-redis-prod
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-}"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend API Server ───────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: recall-api-prod
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-recall}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-recall}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:?JWT secret must be set}
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://recall.example.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      RATE_LIMIT_LOGIN: ${RATE_LIMIT_LOGIN:-10}
+      RATE_LIMIT_REGISTER: ${RATE_LIMIT_REGISTER:-5}
+      RATE_LIMIT_PAIR: ${RATE_LIMIT_PAIR:-15}
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 4
+      --proxy-headers
+      --forwarded-allow-ips "*"
+
+  # ── Frontend Web App ─────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.recall.example.com}
+    container_name: recall-web-prod
+    restart: always
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:

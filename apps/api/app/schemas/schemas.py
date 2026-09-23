@@ -72,6 +72,21 @@ class BrowserConnectionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BrowserPairRequest(BaseModel):
+    pairing_token: str = Field(min_length=10, max_length=255)
+    browser_type: Optional[str] = Field("chrome", pattern=r"^(chrome|firefox|safari)$")
+    connection_name: Optional[str] = Field(None, max_length=100)
+
+
+class BrowserPairResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    connection_id: uuid.UUID
+    browser_type: str
+    connection_name: str
+
+
 class BrowserUpdateRequest(BaseModel):
     is_paused: Optional[bool] = None
     connection_name: Optional[str] = None

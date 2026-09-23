@@ -74,4 +74,5 @@ async def delete_account(
     conversations, topics, preferences, and excluded domains.
     """
     await db.delete(user)
+    await db.commit()
     return MessageResponse(message="Account and all data deleted")

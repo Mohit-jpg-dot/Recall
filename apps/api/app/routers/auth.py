@@ -25,13 +25,23 @@ from app.services.auth_service import (
     get_user_by_email,
     get_user_by_id,
 )
+from app.middleware.rate_limiter import RateLimiter
 
 import uuid
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+reg_limiter = RateLimiter(requests=15, window_seconds=60, key_prefix="auth_reg")
+login_limiter = RateLimiter(requests=30, window_seconds=60, key_prefix="auth_login")
+refresh_limiter = RateLimiter(requests=60, window_seconds=60, key_prefix="auth_refresh")
 
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/register",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(reg_limiter)],
+)
 async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
     # Check if email already exists
@@ -61,7 +71,7 @@ async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db))
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post("/login", response_model=AuthResponse, dependencies=[Depends(login_limiter)])
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Log in with email and password."""
     user = await authenticate_user(db, request.email, request.password)
@@ -105,7 +115,7 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post("/refresh", response_model=AuthResponse)
+@router.post("/refresh", response_model=AuthResponse, dependencies=[Depends(refresh_limiter)])
 async def refresh_token(request: RefreshRequest, db: AsyncSession = Depends(get_db)):
     """Refresh an access token using a valid refresh token."""
     payload = decode_token(request.refresh_token)

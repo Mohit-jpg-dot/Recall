@@ -12,12 +12,15 @@ from app.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.models import User
 from app.schemas.schemas import BatchEventsRequest, BatchEventsResponse
+from app.middleware.rate_limiter import RateLimiter
 from app.services.event_service import ingest_events
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
+batch_limiter = RateLimiter(requests=120, window_seconds=60, key_prefix="events_batch")
 
-@router.post("/batch", response_model=BatchEventsResponse)
+
+@router.post("/batch", response_model=BatchEventsResponse, dependencies=[Depends(batch_limiter)])
 async def batch_ingest(
     request: BatchEventsRequest,
     user: User = Depends(get_current_user),

@@ -20,12 +20,37 @@
     <div id="login-view" class="view">
       <div class="view-content">
         <h2>Connect to Recall</h2>
-        <p class="subtle">Sign in to start remembering.</p>
+        <p class="subtle">Pair this extension with your account.</p>
 
-        <form id="login-form">
+        <div class="auth-tabs">
+          <button type="button" id="tab-token-btn" class="tab-btn active">Pairing Token</button>
+          <button type="button" id="tab-login-btn" class="tab-btn">Password</button>
+        </div>
+
+        <!-- Token Form (Primary / Recommended) -->
+        <form id="token-form">
           <div class="field">
-            <label for="api-url">Server</label>
-            <input type="url" id="api-url" value="http://localhost:8000" placeholder="https://recall.example.com">
+            <label for="token-api-url">Server URL</label>
+            <input type="url" id="token-api-url" value="http://localhost:8000" placeholder="https://api.recall.example.com">
+          </div>
+          <div class="field">
+            <label for="pairing-token">Pairing Token</label>
+            <input type="text" id="pairing-token" placeholder="recall_..." required autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="connection-name">Connection Name</label>
+            <input type="text" id="connection-name" placeholder="Work Laptop (Chrome)">
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="token-btn">Pair Extension</button>
+          <p id="token-error" class="error" hidden></p>
+        </form>
+
+        <!-- Credentials Form (Secondary Fallback) -->
+        <form id="login-form" hidden>
+          <div class="field">
+            <label for="api-url">Server URL</label>
+            <input type="url" id="api-url" value="http://localhost:8000" placeholder="https://api.recall.example.com">
           </div>
           <div class="field">
             <label for="email">Email</label>

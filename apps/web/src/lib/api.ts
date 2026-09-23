@@ -11,26 +11,59 @@ import type {
   User,
 } from './types';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api';
+// Read API URL from environment variable in production, fallback to relative or localhost
+const rawApiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
 
 class ApiClient {
-  private token: string | null = null;
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private isRefreshing = false;
+  private refreshSubscribers: ((token: string) => void)[] = [];
 
   constructor() {
-    this.token = localStorage.getItem('recall_token');
+    this.accessToken = localStorage.getItem('recall_access_token') || localStorage.getItem('recall_token');
+    this.refreshToken = localStorage.getItem('recall_refresh_token');
   }
 
-  setToken(token: string | null) {
-    this.token = token;
-    if (token) {
-      localStorage.setItem('recall_token', token);
+  setTokens(accessToken: string | null, refreshToken: string | null = null) {
+    this.accessToken = accessToken;
+    if (accessToken) {
+      localStorage.setItem('recall_access_token', accessToken);
+      localStorage.setItem('recall_token', accessToken);
     } else {
+      localStorage.removeItem('recall_access_token');
       localStorage.removeItem('recall_token');
+    }
+
+    if (refreshToken) {
+      this.refreshToken = refreshToken;
+      localStorage.setItem('recall_refresh_token', refreshToken);
+    } else if (refreshToken === null && accessToken === null) {
+      this.refreshToken = null;
+      localStorage.removeItem('recall_refresh_token');
     }
   }
 
+  setToken(token: string | null) {
+    this.setTokens(token, null);
+  }
+
   getToken(): string | null {
-    return this.token;
+    return this.accessToken;
+  }
+
+  logout() {
+    this.setTokens(null, null);
+  }
+
+  private onTokenRefreshed(token: string) {
+    this.refreshSubscribers.forEach((callback) => callback(token));
+    this.refreshSubscribers = [];
+  }
+
+  private addRefreshSubscriber(callback: (token: string) => void) {
+    this.refreshSubscribers.push(callback);
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -39,14 +72,69 @@ class ApiClient {
       ...(options.headers as Record<string, string>),
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers,
     });
+
+    if (response.status === 401 && this.refreshToken && endpoint !== '/auth/refresh' && endpoint !== '/auth/login') {
+      if (!this.isRefreshing) {
+        this.isRefreshing = true;
+        try {
+          const refreshRes = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: this.refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            this.setTokens(data.access_token, data.refresh_token);
+            this.isRefreshing = false;
+            this.onTokenRefreshed(data.access_token);
+
+            // Retry original request with new token
+            headers['Authorization'] = `Bearer ${data.access_token}`;
+            const retryRes = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+            if (!retryRes.ok) {
+              const err = await retryRes.json().catch(() => ({ detail: retryRes.statusText }));
+              throw new Error(err.detail || 'Request failed');
+            }
+            return retryRes.json();
+          } else {
+            this.isRefreshing = false;
+            this.logout();
+            throw new Error('Session expired. Please log in again.');
+          }
+        } catch (e) {
+          this.isRefreshing = false;
+          this.logout();
+          throw e;
+        }
+      } else {
+        // Wait for token refresh to complete
+        return new Promise<T>((resolve, reject) => {
+          this.addRefreshSubscriber(async (newToken) => {
+            try {
+              headers['Authorization'] = `Bearer ${newToken}`;
+              const retryRes = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers });
+              if (!retryRes.ok) {
+                const err = await retryRes.json().catch(() => ({ detail: retryRes.statusText }));
+                reject(new Error(err.detail || 'Request failed'));
+              } else {
+                resolve(await retryRes.json());
+              }
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      }
+    }
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
@@ -56,30 +144,36 @@ class ApiClient {
     return response.json();
   }
 
-  async login(credentials: { email: string; password: string }): Promise<{ access_token: string }> {
-    const res = await this.request<{ access_token: string }>('/auth/login', {
+  async login(credentials: { email: string; password: string }): Promise<{ access_token: string; refresh_token: string; user: User }> {
+    const res = await this.request<{ access_token: string; refresh_token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
     if (res.access_token) {
-      this.setToken(res.access_token);
+      this.setTokens(res.access_token, res.refresh_token);
     }
     return res;
   }
 
-  async register(body: { email: string; password: string; display_name: string }) {
-    const res = await this.request<{ access_token: string }>('/auth/register', {
+  async register(body: { email: string; password: string; display_name: string }): Promise<{ access_token: string; refresh_token: string; user: User }> {
+    const res = await this.request<{ access_token: string; refresh_token: string; user: User }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
     });
     if (res.access_token) {
-      this.setToken(res.access_token);
+      this.setTokens(res.access_token, res.refresh_token);
     }
     return res;
   }
 
   async getMe(): Promise<User> {
     return this.request<User>('/me');
+  }
+
+  async deleteAccount(): Promise<{ message: string }> {
+    const res = await this.request<{ message: string }>('/me', { method: 'DELETE' });
+    this.logout();
+    return res;
   }
 
   // Search

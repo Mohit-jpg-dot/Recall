@@ -55,14 +55,8 @@ export const App: React.FC = () => {
       setIsLanding(false);
       return;
     }
-    // Automatically log in as demo user if available, or open auth
-    try {
-      await api.login({ email: 'mohit@recall.dev', password: 'password123' });
-      await checkAuth();
-      setIsLanding(false);
-    } catch (e) {
-      setAuthModalOpen(true);
-    }
+    // Genuinely require authentication for new users
+    setAuthModalOpen(true);
   };
 
   const handleAskAi = (prompt: string) => {
