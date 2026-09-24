@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <!-- Background Obsidian Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141824" />
+      <stop offset="50%" stop-color="#0E111A" />
+      <stop offset="100%" stop-color="#07080B" />
+    </linearGradient>
+
+    <!-- Specular Rim Gradient -->
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818CF8" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#6366F1" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#EC4899" stop-opacity="0.30" />
+    </linearGradient>
+
+    <!-- Recall Brand Gradient -->
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="40%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+
+    <!-- Spark Glow Gradient -->
+    <radialGradient id="sparkGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="35%" stop-color="#EC4899" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Obsidian Squircle Base -->
+  <rect x="5" y="5" width="118" height="118" rx="27" fill="url(#bgGrad)" stroke="url(#rimGrad)" stroke-width="2.5" />
+
+  <!-- Inner Ambient Reflection Line -->
+  <rect x="7" y="7" width="114" height="114" rx="25" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+
+  <!-- Inner Soft Glow -->
+  <circle cx="64" cy="64" r="42" fill="#6366F1" opacity="0.15" />
+
+  <!-- Recall "R" Aperture & Memory Ribbon -->
+  <g fill="url(#brandGrad)">
+    <!-- Main Continuous Body: Stem & Upper Loop -->
+    <path d="M 31 35
+             C 31 30.0 35.0 26 40 26
+             L 70 26
+             C 83.2 26 94 36.8 94 50
+             C 94 63.2 83.2 74 70 74
+             L 47 74
+             L 47 95
+             C 47 99.4 43.4 103 39 103
+             C 34.6 103 31 99.4 31 95
+             Z" />
+
+    <!-- Dynamic Diagonal Synapse Leg -->
+    <path d="M 52 66
+             L 81 97
+             C 84.5 100.8 90.5 100.8 94 97
+             C 97.5 93.5 97.5 87.5 94 84
+             L 68 56
+             Z" />
+  </g>
+
+  <!-- Inner Loop Negative Space / Vault Cutout -->
+  <rect x="47" y="40" width="22" height="20" rx="10" fill="#0E111A" />
+
+  <!-- Luminous Memory Spark Core -->
+  <circle cx="58" cy="50" r="5.5" fill="url(#sparkGlow)" />
+  <circle cx="58" cy="50" r="2.5" fill="#FFFFFF" />
+</svg>

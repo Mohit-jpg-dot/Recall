@@ -1,19 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Laptop,
   Plus,
   Trash2,
   Pause,
   Play,
-  CheckCircle,
   Copy,
-  AlertCircle,
-  Globe,
   Check,
-  Compass,
+  Download,
+  X,
+  ExternalLink,
+  Sparkles,
+  Terminal,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { BrowserConnection } from '../../lib/types';
+import { RecallIcon, BrowserType } from '../common/RecallIcon';
+
+interface BrowserCardInfo {
+  type: BrowserType;
+  name: string;
+  subtitle: string;
+  tag: string;
+  installActionLabel: string;
+  installPath: string;
+  installSteps: string[];
+}
+
+const BROWSER_CARDS: BrowserCardInfo[] = [
+  {
+    type: 'chrome',
+    name: 'Chrome',
+    subtitle: 'Chromium extension',
+    tag: 'Manifest V3 Native',
+    installActionLabel: 'Install for Chrome',
+    installPath: 'apps/extension-chrome/dist/chrome',
+    installSteps: [
+      'Open chrome://extensions in your Chrome address bar',
+      'Toggle "Developer mode" in the top right corner',
+      'Click "Load unpacked" and select apps/extension-chrome/dist/chrome',
+      'Pin the Recall extension to your toolbar, click it, and paste your pairing token',
+    ],
+  },
+  {
+    type: 'brave',
+    name: 'Brave',
+    subtitle: 'Chromium extension',
+    tag: 'Chromium • Brave Shield',
+    installActionLabel: 'Install for Brave',
+    installPath: 'apps/extension-chrome/dist/chrome',
+    installSteps: [
+      'Open brave://extensions in your Brave address bar',
+      'Enable "Developer mode" toggle in the top right header',
+      'Click "Load unpacked" and point to apps/extension-chrome/dist/chrome',
+      'Open the Recall popup from your extensions menu and connect with your token',
+    ],
+  },
+  {
+    type: 'firefox',
+    name: 'Firefox',
+    subtitle: 'Gecko extension',
+    tag: 'Gecko Add-on',
+    installActionLabel: 'Install for Firefox',
+    installPath: 'apps/extension-chrome/dist/firefox/manifest.json',
+    installSteps: [
+      'Open about:debugging#/runtime/this-firefox in Firefox',
+      'Click the "Load Temporary Add-on…" button',
+      'Select apps/extension-chrome/dist/firefox/manifest.json',
+      'Click the Recall icon in your browser toolbar and enter your credentials/token',
+    ],
+  },
+  {
+    type: 'safari',
+    name: 'Safari',
+    subtitle: 'macOS WebExtensions',
+    tag: 'WebKit Native',
+    installActionLabel: 'Install for Safari',
+    installPath: 'apps/extension-chrome/dist/safari',
+    installSteps: [
+      'Open Safari > Settings > Advanced and check "Show Develop menu in menu bar"',
+      'From the Develop menu, allow unsigned extensions or select "Allow Unsigned Extensions"',
+      'Load the extension bundle located at apps/extension-chrome/dist/safari',
+      'Enable Recall under Safari Settings > Extensions',
+    ],
+  },
+];
 
 export const BrowsersView: React.FC = () => {
   const [browsers, setBrowsers] = useState<BrowserConnection[]>([]);
@@ -22,9 +92,10 @@ export const BrowsersView: React.FC = () => {
   const [connectionId, setConnectionId] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState(false);
   const [newBrowserName, setNewBrowserName] = useState('My Laptop');
-  const [browserType, setBrowserType] = useState<'chrome' | 'firefox' | 'safari'>('chrome');
+  const [browserType, setBrowserType] = useState<BrowserType>('chrome');
   const [creating, setCreating] = useState(false);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [activeInstallModal, setActiveInstallModal] = useState<BrowserCardInfo | null>(null);
 
   useEffect(() => {
     loadBrowsers();
@@ -42,19 +113,30 @@ export const BrowsersView: React.FC = () => {
     }
   };
 
-  const handleCreateBrowser = async () => {
-    if (!newBrowserName.trim()) return;
+  const handleCreateBrowser = async (customType?: BrowserType, customName?: string) => {
+    const targetType = customType || browserType;
+    const targetName = customName || newBrowserName;
+    if (!targetName.trim()) return;
+
     setCreating(true);
     try {
-      const res: any = await api.connectBrowser(browserType, newBrowserName);
-      setPairingToken(res.connection_token || res.auth_token || 'paired-token');
+      const res: any = await api.connectBrowser(targetType, targetName);
+      const token = res.connection_token || res.auth_token || 'paired-token';
+      setPairingToken(token);
       setConnectionId(res.id || null);
       loadBrowsers();
+      return token;
     } catch (err) {
       alert('Failed to register browser connection');
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleOpenInstallModal = (card: BrowserCardInfo) => {
+    setBrowserType(card.type);
+    setNewBrowserName(`${card.name} Laptop`);
+    setActiveInstallModal(card);
   };
 
   const handleTogglePause = async (b: BrowserConnection) => {
@@ -85,7 +167,7 @@ export const BrowsersView: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '36px 44px', maxWidth: '920px', margin: '0 auto', width: '100%' }}>
+    <div style={{ padding: '36px 44px', maxWidth: '980px', margin: '0 auto', width: '100%' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
@@ -93,15 +175,119 @@ export const BrowsersView: React.FC = () => {
             Connected Browsers
           </h1>
           <span className="badge badge-indigo" style={{ fontSize: '11px', fontWeight: 600 }}>
-            Multi-Browser
+            Universal Extension
           </span>
         </div>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px' }}>
-          Connect Chrome, Firefox, or Safari extensions to seamlessly index permitted web pages across devices.
+          Equip Chrome, Brave, Firefox, or Safari with Recall's obsidian extension to turn your daily browsing into an indexed, private memory bank.
         </p>
       </div>
 
-      {/* Connect New Browser Panel */}
+      {/* ── Browser Extension Installation Cards ────────── */}
+      <div style={{ marginBottom: '36px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '17px', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '4px' }}>
+            Browser Extension Suite
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Each card features the official Recall brand icon with subtle browser engine indicators.
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: '16px',
+        }}>
+          {BROWSER_CARDS.map((b) => (
+            <div
+              key={b.type}
+              className="glass-panel"
+              style={{
+                padding: '28px 20px 22px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)',
+                backgroundColor: 'var(--surface-glass-card)',
+                transition: 'all var(--transition-normal)',
+                position: 'relative',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-highlight)';
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 12px 32px -8px rgba(99, 102, 241, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              {/* [ Recall Icon ] with subtle browser indicator */}
+              <div style={{ marginBottom: '18px' }}>
+                <RecallIcon size={64} browser={b.type} glow showIndicator={true} />
+              </div>
+
+              {/* Browser Name */}
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+                marginBottom: '4px',
+              }}>
+                {b.name}
+              </h3>
+
+              {/* Subtitle */}
+              <div style={{
+                fontSize: '12.5px',
+                color: 'var(--text-secondary)',
+                marginBottom: '10px',
+              }}>
+                {b.subtitle}
+              </div>
+
+              {/* Subtle Engine Indicator Tag */}
+              <span
+                className="badge"
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: 'var(--text-muted)',
+                  marginBottom: '20px',
+                }}
+              >
+                {b.tag}
+              </span>
+
+              {/* [ Install for Browser ] Action */}
+              <button
+                onClick={() => handleOpenInstallModal(b)}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '9px 14px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-md)',
+                  marginTop: 'auto',
+                }}
+              >
+                <Download size={14} style={{ marginRight: '6px' }} />
+                {b.installActionLabel}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Connect / Pair Browser Panel ─────────────────── */}
       <div className="glass-panel" style={{ padding: '24px 26px', marginBottom: '32px' }}>
         <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '6px' }}>
           Register New Browser Extension
@@ -110,13 +296,16 @@ export const BrowsersView: React.FC = () => {
           Select your browser and give it a label to generate a pairing token.
         </p>
 
-        {/* Browser Type Selector */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-          {(['chrome', 'firefox', 'safari'] as const).map((b) => (
+        {/* Browser Type Selector with Recall brand icons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {(['chrome', 'brave', 'firefox', 'safari'] as const).map((b) => (
             <button
               key={b}
               onClick={() => setBrowserType(b)}
               style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
                 padding: '6px 14px',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: browserType === b ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
@@ -128,6 +317,7 @@ export const BrowsersView: React.FC = () => {
                 transition: 'all var(--transition-fast)',
               }}
             >
+              <RecallIcon size={18} browser={b} showIndicator={true} />
               {b} Extension
             </button>
           ))}
@@ -150,7 +340,7 @@ export const BrowsersView: React.FC = () => {
             }}
           />
           <button
-            onClick={handleCreateBrowser}
+            onClick={() => handleCreateBrowser()}
             disabled={creating}
             className="btn-primary"
           >
@@ -209,34 +399,7 @@ export const BrowsersView: React.FC = () => {
         )}
       </div>
 
-      {/* Browser Installation Guide */}
-      <div style={{
-        padding: '18px 22px',
-        backgroundColor: 'var(--bg-surface)',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border-subtle)',
-        marginBottom: '32px',
-      }}>
-        <h4 style={{ fontSize: '14.5px', fontWeight: 700, marginBottom: '10px', color: 'var(--text-primary)' }}>
-          Browser Installation Paths
-        </h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-          <div style={{ padding: '10px 12px', backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)' }}>
-            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Chrome</strong>
-            Open <code>chrome://extensions</code>, enable Developer mode, and click "Load unpacked" targeting <code>apps/extension-chrome/dist/chrome</code>.
-          </div>
-          <div style={{ padding: '10px 12px', backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)' }}>
-            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Firefox</strong>
-            Open <code>about:debugging#/runtime/this-firefox</code>, click "Load Temporary Add-on", and select <code>apps/extension-chrome/dist/firefox/manifest.json</code>.
-          </div>
-          <div style={{ padding: '10px 12px', backgroundColor: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)' }}>
-            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '4px' }}>Safari</strong>
-            Enable Develop menu in Safari Settings, and load the extension bundle in <code>apps/extension-chrome/dist/safari</code>.
-          </div>
-        </div>
-      </div>
-
-      {/* Active Browsers List */}
+      {/* ── Active Browsers List ─────────────────────────── */}
       <div>
         <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '14px' }}>
           Active Connections ({browsers.length})
@@ -259,7 +422,7 @@ export const BrowsersView: React.FC = () => {
             }}
           >
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
-              No browser extensions connected yet. Register a browser above to start recording memories.
+              No browser extensions connected yet. Click an install card above to pair your first browser.
             </p>
           </div>
         ) : (
@@ -277,20 +440,12 @@ export const BrowsersView: React.FC = () => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div
-                    style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <Laptop size={18} color="var(--accent-light)" />
-                  </div>
+                  {/* Recall Brand Icon with browser-specific indicator */}
+                  <RecallIcon
+                    size={40}
+                    browser={(b.browser_type?.toLowerCase() as BrowserType) || null}
+                    showIndicator={true}
+                  />
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 600, fontSize: '14.5px', color: 'var(--text-primary)' }}>
@@ -410,6 +565,152 @@ export const BrowsersView: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Interactive Installation Guide & Pairing Modal ─── */}
+      {activeInstallModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(7, 8, 11, 0.85)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: '20px',
+          }}
+          onClick={() => setActiveInstallModal(null)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: '540px',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--border-highlight)',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              boxShadow: '0 24px 60px -12px rgba(0, 0, 0, 0.9)',
+              padding: '28px 32px',
+              position: 'relative',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <RecallIcon size={46} browser={activeInstallModal.type} glow showIndicator={true} />
+                <div>
+                  <h3 style={{ fontSize: '19px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Install Recall for {activeInstallModal.name}
+                  </h3>
+                  <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                    {activeInstallModal.subtitle} • {activeInstallModal.tag}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveInstallModal(null)}
+                className="btn-ghost"
+                style={{ padding: '6px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Step-by-Step Guide */}
+            <div style={{ marginBottom: '22px' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '12px' }}>
+                Installation Steps
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {activeInstallModal.installSteps.map((step, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      fontSize: '13.5px',
+                      lineHeight: 1.5,
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(99, 102, 241, 0.18)',
+                        color: 'var(--accent-light)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        marginTop: '1px',
+                      }}
+                    >
+                      {idx + 1}
+                    </span>
+                    <span>{step}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Target Path Box */}
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Bundle Target Path:
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <code style={{ fontSize: '12.5px', color: '#c7d2fe', fontFamily: 'var(--font-mono)' }}>
+                  {activeInstallModal.installPath}
+                </code>
+                <button
+                  onClick={() => copyTokenToClipboard(activeInstallModal.installPath)}
+                  className="btn-ghost"
+                  style={{ fontSize: '11px', padding: '3px 8px' }}
+                >
+                  <Copy size={12} style={{ marginRight: '4px' }} /> Copy Path
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => {
+                  handleCreateBrowser(activeInstallModal.type, `${activeInstallModal.name} Device`);
+                  setActiveInstallModal(null);
+                }}
+                className="btn-primary"
+                style={{ padding: '9px 18px', fontSize: '13.5px' }}
+              >
+                <Sparkles size={15} style={{ marginRight: '6px' }} />
+                Generate Pairing Token
+              </button>
+              <button
+                onClick={() => setActiveInstallModal(null)}
+                className="btn-secondary"
+                style={{ padding: '9px 16px', fontSize: '13.5px' }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

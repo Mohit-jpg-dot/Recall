@@ -19,6 +19,7 @@ import {
   EyeOff,
   Flame,
 } from 'lucide-react';
+import { RecallIcon } from '../common/RecallIcon';
 
 interface LandingViewProps {
   onEnterApp: () => void;
@@ -578,9 +579,10 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnterApp, onOpenAuth
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[
-                { name: 'Google Chrome', status: 'Manifest V3 Native', color: '#60a5fa' },
-                { name: 'Mozilla Firefox', status: 'Gecko Background Script', color: '#f97316' },
-                { name: 'Apple Safari', status: 'WebExtensions Compatible', color: '#38bdf8' },
+                { name: 'Google Chrome', browser: 'chrome' as const, status: 'Manifest V3 Native', color: '#60a5fa' },
+                { name: 'Brave Browser', browser: 'brave' as const, status: 'Chromium Shielded', color: '#fb542b' },
+                { name: 'Mozilla Firefox', browser: 'firefox' as const, status: 'Gecko Add-on', color: '#f97316' },
+                { name: 'Apple Safari', browser: 'safari' as const, status: 'macOS WebExtensions', color: '#38bdf8' },
               ].map((b, i) => (
                 <div key={i} style={{
                   display: 'flex',
@@ -592,8 +594,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onEnterApp, onOpenAuth
                   border: '1px solid var(--border-subtle)',
                   fontSize: '12px',
                 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{b.name}</span>
-                  <span style={{ color: b.color, fontSize: '11px' }}>{b.status}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                    <RecallIcon size={20} browser={b.browser} showIndicator={true} />
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{b.name}</span>
+                  </div>
+                  <span style={{ color: b.color, fontSize: '11px', fontWeight: 500 }}>{b.status}</span>
                 </div>
               ))}
             </div>

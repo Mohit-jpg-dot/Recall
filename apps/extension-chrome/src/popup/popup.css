@@ -60,33 +60,44 @@ body {
 .popup-header {
   display: flex;
   align-items: center;
-  padding: 14px 16px 10px;
+  justify-content: space-between;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-.logo-mark {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: var(--accent);
-  color: white;
+.logo-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: block;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+}
+
+.logo-text-group {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
+  flex-direction: column;
 }
 
 .logo-text {
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  font-size: 14.5px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.logo-subtitle {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 
 /* ── Views ───────────────────────────────────── */

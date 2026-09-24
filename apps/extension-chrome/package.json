@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "vite build --watch",
-    "compile": "vite build && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/",
-    "build:chrome": "npm run compile && mkdir -p dist/chrome/popup && cp manifest.json dist/manifest.json && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/",
-    "build:firefox": "npm run compile && mkdir -p dist/firefox/popup && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/",
-    "build:safari": "npm run compile && mkdir -p dist/safari/popup && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/",
+    "compile": "vite build && mkdir -p dist/popup dist/icons && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/ && cp -r icons/* dist/icons/",
+    "build:chrome": "npm run compile && mkdir -p dist/chrome/popup dist/chrome/icons && cp manifest.json dist/manifest.json && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp -r icons/* dist/chrome/icons/",
+    "build:firefox": "npm run compile && mkdir -p dist/firefox/popup dist/firefox/icons && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp -r icons/* dist/firefox/icons/",
+    "build:safari": "npm run compile && mkdir -p dist/safari/popup dist/safari/icons && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/ && cp -r icons/* dist/safari/icons/",
     "package:safari": "bash scripts/package-safari.sh",
-    "build": "vite build && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/ && cp manifest.json dist/manifest.json && mkdir -p dist/chrome/popup dist/firefox/popup dist/safari/popup && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/",
+    "build": "npm run compile && cp manifest.json dist/manifest.json && mkdir -p dist/chrome/popup dist/chrome/icons dist/firefox/popup dist/firefox/icons dist/safari/popup dist/safari/icons && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp -r icons/* dist/chrome/icons/ && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp -r icons/* dist/firefox/icons/ && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/ && cp -r icons/* dist/safari/icons/",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
