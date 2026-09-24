@@ -9,7 +9,7 @@ export interface BrowsingEventPayload {
   title: string;
   domain: string;
   visited_at: string;
-  source_browser: 'chrome' | 'firefox' | 'safari';
+  source_browser: 'chrome' | 'firefox' | 'safari' | 'brave' | 'edge';
   metadata?: PageMetadata;
 }
 

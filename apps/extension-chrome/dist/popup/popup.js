@@ -1,4 +1,12 @@
-import { d as detectBrowserType } from "../chunks/browser-api.js";
+const browserAPI = typeof globalThis.browser !== "undefined" ? globalThis.browser : globalThis.chrome;
+function detectBrowserType() {
+  const ua = (typeof navigator !== "undefined" ? navigator.userAgent : "").toLowerCase();
+  if (ua.includes("firefox")) return "firefox";
+  if (ua.includes("edg/")) return "edge";
+  if (typeof (navigator == null ? void 0 : navigator.brave) !== "undefined" || ua.includes("chrome") && typeof globalThis.brave !== "undefined") return "brave";
+  if (ua.includes("safari") && !ua.includes("chrome")) return "safari";
+  return "chrome";
+}
 const loginView = document.getElementById("login-view");
 const connectedView = document.getElementById("connected-view");
 const tabTokenBtn = document.getElementById("tab-token-btn");
@@ -17,6 +25,7 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const browserTypeLabel = document.querySelector(".status-card .status-label");
 const connectionStatus = document.getElementById("connection-status");
+const connectionStatusText = document.getElementById("connection-status-text");
 const lastSynced = document.getElementById("last-synced");
 const pendingCount = document.getElementById("pending-count");
 const syncError = document.getElementById("sync-error");
@@ -73,12 +82,12 @@ function showConnectedView(auth, sync) {
   }
   const dot = connectionStatus.querySelector(".status-dot");
   if (auth.is_paused) {
-    dot.className = "status-dot paused";
-    connectionStatus.childNodes[1].textContent = " Paused";
+    if (dot) dot.className = "status-dot paused";
+    if (connectionStatusText) connectionStatusText.textContent = "Paused";
     pauseBtn.textContent = "Resume";
   } else {
-    dot.className = "status-dot connected";
-    connectionStatus.childNodes[1].textContent = " Connected";
+    if (dot) dot.className = "status-dot connected";
+    if (connectionStatusText) connectionStatusText.textContent = "Connected";
     pauseBtn.textContent = "Pause";
   }
   if (sync.last_synced_at) {
@@ -103,7 +112,7 @@ if (tokenForm) {
     tokenError.hidden = true;
     tokenBtn.textContent = "Pairing...";
     tokenBtn.disabled = true;
-    const apiUrl = tokenApiUrlInput.value.replace(/\/$/, "");
+    const apiUrl = (tokenApiUrlInput.value.trim() || "http://localhost:8000").replace(/\/$/, "");
     const pairingToken = pairingTokenInput.value.trim();
     const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
     const connectionName = connectionNameInput.value.trim() || `${browserName} Browser`;
@@ -162,7 +171,7 @@ if (loginForm) {
     loginError.hidden = true;
     loginBtn.textContent = "Connecting...";
     loginBtn.disabled = true;
-    const apiUrl = apiUrlInput.value.replace(/\/$/, "");
+    const apiUrl = (apiUrlInput.value.trim() || "http://localhost:8000").replace(/\/$/, "");
     const email = emailInput.value.trim();
     const password = passwordInput.value;
     const browserName = detectedBrowser.charAt(0).toUpperCase() + detectedBrowser.slice(1);
@@ -248,11 +257,15 @@ disconnectBtn.addEventListener("click", async () => {
 });
 openRecall.addEventListener("click", (e) => {
   e.preventDefault();
-  chrome.tabs.create({ url: openRecall.href });
+  browserAPI.tabs.create({ url: openRecall.href });
 });
 function sendMessage(message) {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage(message, (response) => {
+    browserAPI.runtime.sendMessage(message, (response) => {
+      var _a;
+      if ((_a = browserAPI.runtime) == null ? void 0 : _a.lastError) {
+        console.warn("[Recall] sendMessage:", browserAPI.runtime.lastError.message);
+      }
       resolve(response || {});
     });
   });

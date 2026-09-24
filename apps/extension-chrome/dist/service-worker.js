@@ -1,4 +1,12 @@
-import { b as browserAPI, d as detectBrowserType } from "./chunks/browser-api.js";
+const browserAPI = typeof globalThis.browser !== "undefined" ? globalThis.browser : globalThis.chrome;
+function detectBrowserType() {
+  const ua = (typeof navigator !== "undefined" ? navigator.userAgent : "").toLowerCase();
+  if (ua.includes("firefox")) return "firefox";
+  if (ua.includes("edg/")) return "edge";
+  if (typeof (navigator == null ? void 0 : navigator.brave) !== "undefined" || ua.includes("chrome") && typeof globalThis.brave !== "undefined") return "brave";
+  if (ua.includes("safari") && !ua.includes("chrome")) return "safari";
+  return "chrome";
+}
 function shouldExclude(url, domain, excludedDomains) {
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     return true;
@@ -216,29 +224,27 @@ browserAPI.runtime.onInstalled.addListener(async (details) => {
   await browserAPI.alarms.create(SYNC_ALARM_NAME, {
     periodInMinutes: SYNC_INTERVAL_MINUTES
   });
-  if (details.reason === "install") {
-    const { auth } = await browserAPI.storage.local.get("auth");
-    if (!auth) {
-      const defaultAuth = {
-        access_token: null,
-        refresh_token: null,
-        connection_id: null,
-        api_url: "http://localhost:8000",
-        is_connected: false,
-        is_paused: false
-      };
-      await browserAPI.storage.local.set({
-        auth: defaultAuth,
-        queue: [],
-        sync: {
-          last_synced_at: null,
-          pending_count: 0,
-          is_syncing: false,
-          last_error: null
-        },
-        excluded_domains: []
-      });
-    }
+  const { auth } = await browserAPI.storage.local.get("auth");
+  if (!auth) {
+    const defaultAuth = {
+      access_token: null,
+      refresh_token: null,
+      connection_id: null,
+      api_url: "http://localhost:8000",
+      is_connected: false,
+      is_paused: false
+    };
+    await browserAPI.storage.local.set({
+      auth: defaultAuth,
+      queue: [],
+      sync: {
+        last_synced_at: null,
+        pending_count: 0,
+        is_syncing: false,
+        last_error: null
+      },
+      excluded_domains: []
+    });
   }
   console.log(`[Recall] Extension installed/updated on ${detectBrowserType()}`);
 });

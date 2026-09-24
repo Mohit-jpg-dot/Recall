@@ -3,13 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vite build --watch",
-    "compile": "vite build && mkdir -p dist/popup dist/icons && cp src/popup/popup.html dist/popup/ && cp src/popup/popup.css dist/popup/ && cp -r icons/* dist/icons/",
-    "build:chrome": "npm run compile && mkdir -p dist/chrome/popup dist/chrome/icons && cp manifest.json dist/manifest.json && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp -r icons/* dist/chrome/icons/",
-    "build:firefox": "npm run compile && mkdir -p dist/firefox/popup dist/firefox/icons && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp -r icons/* dist/firefox/icons/",
-    "build:safari": "npm run compile && mkdir -p dist/safari/popup dist/safari/icons && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/ && cp -r icons/* dist/safari/icons/",
+    "dev": "node scripts/build.mjs",
+    "compile": "node scripts/build.mjs",
+    "build:chrome": "node scripts/build.mjs",
+    "build:firefox": "node scripts/build.mjs",
+    "build:safari": "node scripts/build.mjs",
     "package:safari": "bash scripts/package-safari.sh",
-    "build": "npm run compile && cp manifest.json dist/manifest.json && mkdir -p dist/chrome/popup dist/chrome/icons dist/firefox/popup dist/firefox/icons dist/safari/popup dist/safari/icons && cp manifest.json dist/chrome/manifest.json && cp dist/service-worker.js dist/chrome/ && cp -r dist/popup/* dist/chrome/popup/ && cp -r icons/* dist/chrome/icons/ && cp manifest.firefox.json dist/firefox/manifest.json && cp dist/service-worker.js dist/firefox/ && cp -r dist/popup/* dist/firefox/popup/ && cp -r icons/* dist/firefox/icons/ && cp manifest.safari.json dist/safari/manifest.json && cp dist/service-worker.js dist/safari/ && cp -r dist/popup/* dist/safari/popup/ && cp -r icons/* dist/safari/icons/",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

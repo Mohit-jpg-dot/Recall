@@ -32,30 +32,28 @@ browserAPI.runtime.onInstalled.addListener(async (details) => {
     periodInMinutes: SYNC_INTERVAL_MINUTES,
   });
 
-  // Initialize storage defaults if fresh install
-  if (details.reason === 'install') {
-    const { auth } = await browserAPI.storage.local.get('auth');
-    if (!auth) {
-      const defaultAuth: AuthState = {
-        access_token: null,
-        refresh_token: null,
-        connection_id: null,
-        api_url: 'http://localhost:8000',
-        is_connected: false,
-        is_paused: false,
-      };
-      await browserAPI.storage.local.set({
-        auth: defaultAuth,
-        queue: [],
-        sync: {
-          last_synced_at: null,
-          pending_count: 0,
-          is_syncing: false,
-          last_error: null,
-        },
-        excluded_domains: [],
-      });
-    }
+  // Initialize storage defaults if missing
+  const { auth } = await browserAPI.storage.local.get('auth');
+  if (!auth) {
+    const defaultAuth: AuthState = {
+      access_token: null,
+      refresh_token: null,
+      connection_id: null,
+      api_url: 'http://localhost:8000',
+      is_connected: false,
+      is_paused: false,
+    };
+    await browserAPI.storage.local.set({
+      auth: defaultAuth,
+      queue: [],
+      sync: {
+        last_synced_at: null,
+        pending_count: 0,
+        is_syncing: false,
+        last_error: null,
+      },
+      excluded_domains: [],
+    });
   }
 
   console.log(`[Recall] Extension installed/updated on ${detectBrowserType()}`);

@@ -55,7 +55,7 @@ class UserUpdate(BaseModel):
 # ── Browser Connection Schemas ───────────────────
 
 class BrowserConnectRequest(BaseModel):
-    browser_type: str = Field(pattern=r"^(chrome|firefox|safari)$")
+    browser_type: str = Field(pattern=r"^(chrome|firefox|safari|brave|edge)$")
     connection_name: str = Field(min_length=1, max_length=100)
 
 
@@ -74,7 +74,7 @@ class BrowserConnectionResponse(BaseModel):
 
 class BrowserPairRequest(BaseModel):
     pairing_token: str = Field(min_length=10, max_length=255)
-    browser_type: Optional[str] = Field("chrome", pattern=r"^(chrome|firefox|safari)$")
+    browser_type: Optional[str] = Field("chrome", pattern=r"^(chrome|firefox|safari|brave|edge)$")
     connection_name: Optional[str] = Field(None, max_length=100)
 
 
@@ -109,7 +109,7 @@ class BrowsingEventPayload(BaseModel):
     title: Optional[str] = Field(None, max_length=500)
     domain: str = Field(max_length=255)
     visited_at: datetime
-    source_browser: str = Field(pattern=r"^(chrome|firefox|safari)$")
+    source_browser: str = Field(pattern=r"^(chrome|firefox|safari|brave|edge)$")
     metadata: Optional[PageMetadata] = None
 
     @field_validator("url")

@@ -1,11 +1,21 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 build/
+
+# Environment / secrets
 .env
 .env.*
 !.env.example
-__pycache__/
-*.py[cod]
+
+# Python
 .venv/
 venv/
+__pycache__/
+*.py[cod]
 .pytest_cache/
+
+# OS
+.DS_Store

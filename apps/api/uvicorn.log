@@ -1,0 +1,240 @@
+INFO:     Will watch for changes in these directories: ['/Users/mohit/Downloads/Recall/apps/api']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [52295] using WatchFiles
+INFO:     Started server process [52297]
+INFO:     Waiting for application startup.
+2026-09-24 13:01:32,314 [INFO] recall.embeddings: Recall embedding background worker started.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58332 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "POST /api/events/batch HTTP/1.1" 401 Unauthorized
+2026-09-24 13:02:29,912 [INFO] recall.api: [09e44126] POST /api/events/batch in 50.04ms
+INFO:     127.0.0.1:58409 - "POST /api/auth/refresh HTTP/1.1" 200 OK
+2026-09-24 13:02:29,933 [INFO] recall.api: [68652d72] POST /api/auth/refresh in 17.86ms
+INFO:     127.0.0.1:58409 - "POST /api/events/batch HTTP/1.1" 200 OK
+2026-09-24 13:02:29,953 [INFO] recall.api: [75fa2a0c] POST /api/events/batch in 18.1ms
+WARNING:  WatchFiles detected changes in 'app/services/search_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-24 13:02:42,765 [INFO] recall.embeddings: Recall embedding background worker stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52297]
+INFO:     Started server process [52377]
+INFO:     Waiting for application startup.
+2026-09-24 13:02:43,138 [INFO] recall.embeddings: Recall embedding background worker started.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/search_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-24 13:03:34,166 [INFO] recall.embeddings: Recall embedding background worker stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52377]
+INFO:     Started server process [52406]
+INFO:     Waiting for application startup.
+2026-09-24 13:03:34,609 [INFO] recall.embeddings: Recall embedding background worker started.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/services/search_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-24 13:03:50,683 [INFO] recall.embeddings: Recall embedding background worker stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52406]
+INFO:     Started server process [52419]
+INFO:     Waiting for application startup.
+2026-09-24 13:03:51,127 [INFO] recall.embeddings: Recall embedding background worker started.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58450 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58452 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-09-24 13:04:36,919 [INFO] recall.api: [30cd1657] POST /api/auth/login in 247.11ms
+INFO:     127.0.0.1:58454 - "GET /api/search?q=cuda HTTP/1.1" 405 Method Not Allowed
+2026-09-24 13:04:36,925 [INFO] recall.api: [fb9bb5ad] GET /api/search in 0.12ms
+INFO:     127.0.0.1:58464 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-09-24 13:04:53,115 [INFO] recall.api: [240fdc97] POST /api/auth/login in 179.13ms
+2026-09-24 13:04:53,141 [INFO] recall.api: [d50bc12e] POST /api/search in 19.49ms
+2026-09-24 13:04:53,141 [ERROR] recall.api: Unhandled server error [req_id=c73c88c9-d5cc-45be-b614-0cf433e0a46d]: Neither 'InstrumentedAttribute' object nor 'Comparator' object associated with BrowsingEvent.id has an attribute 'not_in_'
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 1496, in __getattr__
+    return getattr(self.comparator, key)
+AttributeError: 'Comparator' object has no attribute 'not_in_'. Did you mean: 'not_in'?
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/attributes.py", line 472, in __getattr__
+    return getattr(self.comparator, key)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 1328, in __getattr__
+    return self._fallback_getattr(key)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/properties.py", line 474, in _fallback_getattr
+    return getattr(self.__clause_element__(), key)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 1498, in __getattr__
+    raise AttributeError(
+    ...<6 lines>...
+    ) from err
+AttributeError: Neither 'AnnotatedColumn' object nor 'Comparator' object has an attribute 'not_in_'. Did you mean: 'not_in'?
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/app/main.py", line 88, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/app/routers/search.py", line 28, in perform_search
+    return await search_memories(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/mohit/Downloads/Recall/apps/api/app/services/search_service.py", line 463, in search_memories
+    BrowsingEvent.id.not_in_(top_event_ids),
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/attributes.py", line 474, in __getattr__
+    raise AttributeError(
+    ...<8 lines>...
+    ) from err
+AttributeError: Neither 'InstrumentedAttribute' object nor 'Comparator' object associated with BrowsingEvent.id has an attribute 'not_in_'. Did you mean: 'not_in'?
+INFO:     127.0.0.1:58466 - "POST /api/search HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 1496, in __getattr__
+    return getattr(self.comparator, key)
+AttributeError: 'Comparator' object has no attribute 'not_in_'. Did you mean: 'not_in'?
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/attributes.py", line 472, in __getattr__
+    return getattr(self.comparator, key)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py", line 1328, in __getattr__
+    return self._fallback_getattr(key)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/properties.py", line 474, in _fallback_getattr
+    return getattr(self.__clause_element__(), key)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py", line 1498, in __getattr__
+    raise AttributeError(
+    ...<6 lines>...
+    ) from err
+AttributeError: Neither 'AnnotatedColumn' object nor 'Comparator' object has an attribute 'not_in_'. Did you mean: 'not_in'?
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/uvicorn/protocols/http/httptools_impl.py", line 409, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.scope, self.receive, self.send
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/uvicorn/middleware/proxy_headers.py", line 60, in __call__
+    return await self.app(scope, receive, send)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/fastapi/applications.py", line 1054, in __call__
+    await super().__call__(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/applications.py", line 113, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 187, in __call__
+    raise exc
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/errors.py", line 165, in __call__
+    await self.app(scope, receive, _send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/cors.py", line 85, in __call__
+    await self.app(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/app/main.py", line 88, in __call__
+    await self.app(scope, receive, send_wrapper)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/middleware/exceptions.py", line 62, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 715, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 735, in app
+    await route.handle(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 288, in handle
+    await self.app(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 76, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/starlette/routing.py", line 73, in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 301, in app
+    raw_response = await run_endpoint_function(
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/fastapi/routing.py", line 212, in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/app/routers/search.py", line 28, in perform_search
+    return await search_memories(
+           ^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+    )
+    ^
+  File "/Users/mohit/Downloads/Recall/apps/api/app/services/search_service.py", line 463, in search_memories
+    BrowsingEvent.id.not_in_(top_event_ids),
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/mohit/Downloads/Recall/apps/api/.venv/lib/python3.13/site-packages/sqlalchemy/orm/attributes.py", line 474, in __getattr__
+    raise AttributeError(
+    ...<8 lines>...
+    ) from err
+AttributeError: Neither 'InstrumentedAttribute' object nor 'Comparator' object associated with BrowsingEvent.id has an attribute 'not_in_'. Did you mean: 'not_in'?
+WARNING:  WatchFiles detected changes in 'app/services/search_service.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-24 13:05:10,489 [INFO] recall.embeddings: Recall embedding background worker stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52419]
+INFO:     Started server process [52477]
+INFO:     Waiting for application startup.
+2026-09-24 13:05:10,927 [INFO] recall.embeddings: Recall embedding background worker started.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:58476 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-09-24 13:05:19,723 [INFO] recall.api: [595c667a] POST /api/auth/login in 224.18ms
+INFO:     127.0.0.1:58478 - "POST /api/search HTTP/1.1" 200 OK
+2026-09-24 13:05:19,748 [INFO] recall.api: [c0b4e4dc] POST /api/search in 18.91ms
+INFO:     127.0.0.1:58479 - "POST /api/chat HTTP/1.1" 403 Forbidden
+2026-09-24 13:05:28,028 [INFO] recall.api: [8a19675e] POST /api/chat in 0.27ms
+INFO:     127.0.0.1:58481 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-09-24 13:05:40,793 [INFO] recall.api: [cf0819db] POST /api/auth/login in 179.99ms
+INFO:     127.0.0.1:58482 - "POST /api/chat HTTP/1.1" 200 OK
+2026-09-24 13:05:40,824 [INFO] recall.api: [fdb7b2ff] POST /api/chat in 24.57ms
+INFO:     127.0.0.1:58485 - "GET /api/health HTTP/1.1" 200 OK

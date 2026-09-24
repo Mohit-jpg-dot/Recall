@@ -15,7 +15,9 @@
     "alarms"
   ],
   "host_permissions": [
-    "http://localhost:8000/*"
+    "http://localhost:*/*",
+    "http://127.0.0.1:*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",

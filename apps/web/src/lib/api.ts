@@ -12,8 +12,8 @@ import type {
 } from './types';
 
 // Read API URL from environment variable in production, fallback to relative or localhost
-const rawApiUrl = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000';
-const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`;
+const rawApiUrl = (import.meta as any).env?.VITE_API_URL || '';
+const API_BASE_URL = rawApiUrl ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl.replace(/\/$/, '')}/api`) : '/api';
 
 class ApiClient {
   private accessToken: string | null = null;

@@ -122,25 +122,62 @@ async def generate_grounded_response(
         except Exception:
             pass  # Fallback to local synthesizer below
 
-    # Deterministic high-quality synthesis
+    # Deterministic high-quality grounded synthesis
     top = sources[0]
+    q_lower = query.lower()
+    
+    # Categorize what the user asked for
+    is_song_q = any(w in q_lower for w in ["song", "music", "track", "audio", "soundtrack", "album", "lyrics", "listen"])
+    is_game_q = any(w in q_lower for w in ["game", "games", "gaming", "gamer", "play", "played"])
+    is_movie_q = any(w in q_lower for w in ["movie", "movies", "film", "films", "cinema", "trailer"])
+
+    # Filter out any generic homepages from sources if specific content pages are present
+    content_sources = [
+        s for s in sources 
+        if not (s.url.rstrip('/') in ["https://www.youtube.com", "https://youtube.com", "https://www.google.com", "https://google.com"])
+    ]
+    curated_sources = content_sources if content_sources else sources
+
+    if is_song_q:
+        lines = ["Based on your browsing memory, you searched for and listened to this music:"]
+        for i, s in enumerate(curated_sources[:4], 1):
+            s_date = s.visited_at.strftime("%b %d, %Y")
+            lines.append(f"{i}. **[{s.title}]({s.url})** on `{s.domain}` (visited {s_date})")
+        return "\n\n".join(lines)
+
+    if is_game_q:
+        lines = ["In your browsing history, you searched for the following games:"]
+        for i, s in enumerate(curated_sources[:4], 1):
+            s_date = s.visited_at.strftime("%b %d, %Y")
+            lines.append(f"{i}. **[{s.title}]({s.url})** on `{s.domain}` (visited {s_date})")
+        return "\n\n".join(lines)
+
+    if is_movie_q:
+        lines = ["In your browsing history, you searched for and watched the following movie content:"]
+        for i, s in enumerate(curated_sources[:4], 1):
+            s_date = s.visited_at.strftime("%b %d, %Y")
+            lines.append(f"{i}. **[{s.title}]({s.url})** on `{s.domain}` (visited {s_date})")
+        return "\n\n".join(lines)
+
+    # General grounded response
+    top = curated_sources[0]
     date_str = top.visited_at.strftime("%B %d, %Y")
 
-    if len(sources) == 1:
+    if len(curated_sources) == 1:
         return (
             f"Based on your browsing memory, you visited **[{top.title}]({top.url})** on **{top.domain}** on **{date_str}**.\n\n"
             f"Match relevance: {int(top.relevance_score * 100)}%."
         )
 
     lines = [
-        f"I found several possible matches in your browsing history for **\"{query}\"**:\n"
+        f"I found {len(curated_sources)} relevant memories for **\"{query}\"**:\n"
     ]
-    for i, s in enumerate(sources[:4], 1):
+    for i, s in enumerate(curated_sources[:4], 1):
         s_date = s.visited_at.strftime("%b %d, %Y")
         lines.append(f"{i}. **[{s.title}]({s.url})** on `{s.domain}` (visited {s_date})")
 
     lines.append(
-        f"\nThe closest match is **[{top.title}]({top.url})**, visited on {date_str}."
+        f"\nThe most relevant record is **[{top.title}]({top.url})**, visited on {date_str}."
     )
     return "\n".join(lines)
 
